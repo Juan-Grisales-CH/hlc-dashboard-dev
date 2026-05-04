@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HLC · INVOICE INTELLIGENCE</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
+:root {
+  --bg:#060608;--panel:#0d0d14;--panel2:#12121c;--panel3:#181826;
+  --border:#1e1e2e;--border2:#2a2a3e;--border3:#363650;
+  --lime:#b8ff3c;--lime2:#8fcc1e;--cyan:#00e5ff;
+  --magenta:#ff2d9b;--amber:#ffaa00;--red:#ff2d55;--purple:#7c3aed;
+  --text:#e0e0f0;--text2:#8888aa;--text3:#44445a;--text4:#22223a;
+  --mono:'Share Tech Mono',monospace;--head:'Rajdhani',sans-serif;
+  --fs-base:13px;--fs-sm:11px;--fs-xs:10px;--fs-tiny:9px;
+  --gl:0 0 8px rgba(184,255,60,0.4);--gc:0 0 8px rgba(0,229,255,0.4);
+  --gm:0 0 8px rgba(255,45,155,0.4);--ga:0 0 8px rgba(255,170,0,0.4);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:9999}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(184,255,60,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(184,255,60,0.012) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+
+/* HEADER */
+.hdr{position:sticky;top:0;z-index:100;background:var(--panel);border-bottom:1px solid var(--border2);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:48px}
+.hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--lime),transparent);opacity:.35}
+.logo{display:flex;align-items:center;gap:12px}
+.lm{width:28px;height:28px;border:1px solid var(--lime);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--lime);box-shadow:var(--gl);clip-path:polygon(0 4px,4px 0,calc(100% - 4px) 0,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0 calc(100% - 4px))}
+.lt{font-family:var(--head);font-size:15px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.ls{font-size:9px;color:var(--text3);letter-spacing:.12em}
+.hdr-c{display:flex;align-items:center;gap:6px;font-size:12px}
+.pulse{width:5px;height:5px;border-radius:50%;background:var(--text3)}
+.pulse.live{background:var(--lime);box-shadow:var(--gl);animation:blink 2s infinite}
+.pulse.err{background:var(--magenta)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-r{display:flex;align-items:center;gap:10px}
+.usel{background:var(--panel2);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:11px;padding:5px 10px;outline:none;cursor:pointer}
+.bup{background:transparent;border:1px solid var(--lime);color:var(--lime);font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:6px 14px;cursor:pointer;transition:all .15s;text-transform:uppercase;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+.bup:hover{background:var(--lime);color:var(--bg);box-shadow:var(--gl)}
+#fi{display:none}
+
+/* TABS */
+.tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:48px;z-index:99}
+.tab{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--lime);border-bottom-color:var(--lime)}
+.tb{font-size:9px;background:var(--panel3);color:var(--text3);padding:1px 5px;min-width:18px;text-align:center}
+.tab.active .tb{background:rgba(184,255,60,.15);color:var(--lime)}
+.tc{display:none}.tc.active{display:block}
+.main{padding:20px;max-width:1440px;position:relative;z-index:1}
+
+/* VIEW MODE BAR */
+.vbar{background:var(--panel2);border:1px solid var(--border2);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.vbar-left{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text3)}
+.vbar-mode{color:var(--lime);font-size:12px;font-weight:600;letter-spacing:.06em}
+.vbar-right{display:flex;align-items:center;gap:8px}
+.vbtn{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;cursor:pointer;border:1px solid;background:transparent;transition:all .15s;clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))}
+.vbtn-lime{color:var(--lime);border-color:rgba(184,255,60,.4)}
+.vbtn-lime:hover,.vbtn-lime.active{background:rgba(184,255,60,.15);box-shadow:var(--gl)}
+.vbtn-cyan{color:var(--cyan);border-color:rgba(0,229,255,.4)}
+.vbtn-cyan:hover,.vbtn-cyan.active{background:rgba(0,229,255,.1);box-shadow:var(--gc)}
+.vbtn-gray{color:var(--text3);border-color:var(--border2)}
+.vbtn-gray:hover{color:var(--text2);border-color:var(--border3)}
+
+/* MINI DROP ZONE */
+.mini-dz{border:1px dashed var(--border3);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;cursor:pointer;transition:all .2s}
+.mini-dz:hover,.mini-dz.drag{border-color:var(--lime);background:rgba(184,255,60,.03)}
+.mini-dz-left{display:flex;align-items:center;gap:10px;font-size:10px;color:var(--text3)}
+.mini-dz-icon{color:var(--lime);font-size:14px;opacity:.7}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.mc{background:var(--panel);border:1px solid var(--border2);padding:14px 16px;position:relative;clip-path:polygon(0 6px,6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%);overflow:hidden}
+.mc::after{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:var(--border3)}
+.mc.al::after{background:var(--lime);box-shadow:var(--gl)}
+.mc.ac::after{background:var(--cyan);box-shadow:var(--gc)}
+.mc.am::after{background:var(--magenta);box-shadow:var(--gm)}
+.mc.aa::after{background:var(--amber);box-shadow:var(--ga)}
+.ml{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;font-weight:600}
+.mv{font-family:var(--head);font-size:32px;font-weight:700;line-height:1;margin-bottom:4px}
+.mv.lime{color:var(--lime);text-shadow:var(--gl)}
+.mv.cyan{color:var(--cyan);text-shadow:var(--gc)}
+.mv.magenta{color:var(--magenta);text-shadow:var(--gm)}
+.mv.amber{color:var(--amber);text-shadow:var(--ga)}
+.ms{font-size:11px;color:var(--text3)}
+
+/* CHARTS */
+.charts-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px}
+.cw{grid-column:1/-1}
+.cpanel{background:var(--panel);border:1px solid var(--border2);overflow:hidden}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel2)}
+.pt2{font-family:var(--head);font-size:12px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--text2);display:flex;align-items:center;gap:8px}
+.pt2::before{content:'//';color:var(--lime);font-family:var(--mono);font-size:10px}
+.cb{padding:16px}
+canvas{display:block}
+.dw{display:flex;align-items:center;gap:20px}
+.dl{flex:1}
+.li{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:10px;color:var(--text2)}
+.ld{width:8px;height:8px;flex-shrink:0}
+
+/* COMPARE GRID */
+.compare-grid{display:grid;gap:12px;margin-bottom:16px}
+.cmp-card{background:var(--panel);border:1px solid var(--border2);padding:14px;position:relative;overflow:hidden}
+.cmp-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.cmp-period{font-family:var(--head);font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px;letter-spacing:.06em}
+.cmp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cmp-stat-lbl{font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;font-weight:600}
+.cmp-stat-val{font-family:var(--head);font-size:22px;font-weight:700}
+
+/* TABLE */
+.tw{background:var(--panel);border:1px solid var(--border2);overflow:hidden;margin-bottom:16px}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--panel2);border-bottom:1px solid var(--border2)}
+th{font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text2);padding:10px 14px;text-align:left;white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;font-size:12px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--panel2)}
+
+/* HISTORY CONTROL PANEL */
+.hist-controls{background:var(--panel2);border:1px solid var(--border2);padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.hist-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.sel-count{font-size:10px;color:var(--text3)}
+.sel-count span{color:var(--lime)}
+.hist-row{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.hist-row:last-child{border-bottom:none}
+.hist-row:hover{background:rgba(184,255,60,.03)}
+.hist-row.selected{background:rgba(184,255,60,.05);border-left:2px solid var(--lime)}
+.hist-cb{width:14px;height:14px;border:1px solid var(--border3);background:transparent;cursor:pointer;accent-color:var(--lime);flex-shrink:0}
+.hist-info{flex:1}
+.hist-period{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.hist-meta{font-size:11px;color:var(--text3)}
+.hist-stats{display:flex;gap:8px;align-items:center}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;font-family:var(--mono);font-size:10px;letter-spacing:.06em;padding:2px 7px;white-space:nowrap;clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))}
+.bl{background:rgba(184,255,60,.12);color:var(--lime);border:1px solid rgba(184,255,60,.3)}
+.bc{background:rgba(0,229,255,.1);color:var(--cyan);border:1px solid rgba(0,229,255,.3)}
+.bm{background:rgba(255,45,155,.12);color:var(--magenta);border:1px solid rgba(255,45,155,.3)}
+.ba{background:rgba(255,170,0,.12);color:var(--amber);border:1px solid rgba(255,170,0,.3)}
+.bg{background:rgba(255,255,255,.05);color:var(--text3);border:1px solid var(--border2)}
+
+/* FILTERS */
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border:1px solid var(--border2);color:var(--text3);cursor:pointer;transition:all .15s;background:transparent}
+.chip:hover{border-color:var(--border3);color:var(--text2)}
+.chip.active{border-color:var(--lime);color:var(--lime);background:rgba(184,255,60,.08)}
+
+/* FORM */
+.fp{background:var(--panel);border:1px solid var(--border2);padding:16px;margin-bottom:14px}
+.fg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.fg label{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+.fg input,.fg select{width:100%;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;outline:none;transition:border-color .15s}
+.fg input:focus,.fg select:focus{border-color:var(--cyan)}
+.full-input{width:100%;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;outline:none;resize:vertical;min-height:52px;margin-bottom:10px;display:block}
+.full-input:focus{border-color:var(--cyan)}
+.fa{display:flex;gap:8px}
+.btn-p{background:var(--lime);color:var(--bg);border:none;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:8px 18px;cursor:pointer;transition:all .15s;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+.btn-p:hover{background:var(--lime2);box-shadow:var(--gl)}
+.btn-s{background:transparent;color:var(--text3);border:1px solid var(--border2);font-family:var(--mono);font-size:10px;padding:7px 14px;cursor:pointer;clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px));transition:all .15s}
+.btn-s:hover{border-color:var(--border3);color:var(--text2)}
+.bsm{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;cursor:pointer;border:1px solid;background:transparent;transition:all .15s;clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))}
+.bsm-lime{color:var(--lime);border-color:rgba(184,255,60,.4)}
+.bsm-lime:hover{background:rgba(184,255,60,.12)}
+.bsm-gray{color:var(--text3);border-color:var(--border2)}
+.bsm-gray:hover{color:var(--text2);border-color:var(--border3)}
+
+/* PROGRESS */
+.pw{margin-bottom:14px;display:none;background:var(--panel2);border:1px solid var(--border2);padding:10px 14px}
+.pl{font-size:12px;color:var(--lime);margin-bottom:6px;letter-spacing:.08em;font-weight:600}
+.pt{height:4px;background:var(--panel3);border-radius:2px}
+.pf{height:100%;background:linear-gradient(90deg,var(--lime2),var(--lime));width:0%;transition:width .3s ease;box-shadow:var(--gl);position:relative;overflow:hidden}
+.pf::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent);animation:shimmer 1s infinite}
+
+/* ALERT */
+.alert{display:none;background:rgba(255,45,155,.08);border:1px solid rgba(255,45,155,.3);padding:8px 14px;margin-bottom:14px;font-size:11px;color:var(--magenta);align-items:center;gap:8px}
+.alert.show{display:flex}
+
+/* EXPL */
+.expl{font-size:11px;color:var(--text2);line-height:1.5;max-width:360px}
+.expl.loading{color:var(--text3);font-style:italic}
+.expl-e{color:var(--text4);font-size:10px}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 24px;color:var(--text3)}
+.empty-i{font-size:26px;margin-bottom:12px;opacity:.3}
+.empty-t{font-family:var(--head);font-size:13px;color:var(--text2);margin-bottom:6px;letter-spacing:.06em}
+.empty-s{font-size:11px;max-width:280px;margin:0 auto;line-height:1.6}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-size:11px;padding:10px 16px;z-index:9000;transform:translateY(60px);opacity:0;transition:all .2s;max-width:300px;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-left:2px solid var(--lime)}
+.toast.err{border-left:2px solid var(--magenta)}
+.toast.info{border-left:2px solid var(--cyan)}
+.toast.warn{border-left:2px solid var(--amber)}
+
+/* LOADING OVERLAY */
+.load-overlay{position:fixed;inset:0;background:rgba(6,6,8,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:500;display:none}
+.load-overlay.show{display:flex}
+.load-title{font-family:var(--head);font-size:18px;font-weight:700;color:var(--lime);letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px;text-shadow:var(--gl)}
+.load-sub{font-size:10px;color:var(--text3);letter-spacing:.1em;margin-bottom:24px}
+.load-bar-wrap{width:280px;height:4px;background:var(--panel3);border-radius:2px}
+.load-bar{height:100%;background:linear-gradient(90deg,var(--lime2),var(--lime));width:0%;transition:width .4s ease;box-shadow:var(--gl);position:relative;overflow:hidden}
+.load-bar::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);animation:shimmer 1.2s infinite}
+@keyframes shimmer{0%{left:-100%}100%{left:200%}}
+
+/* TRENDS */
+.trend-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px}
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div class="load-overlay" id="loadOverlay">
+  <div class="load-title">HLC Intelligence</div>
+  <div class="load-sub" id="loadSub">Connecting to Supabase...</div>
+  <div class="load-bar-wrap"><div class="load-bar" id="loadBar"></div></div>
+</div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="logo">
+    <div class="lm">CH</div>
+    <div>
+      <div class="lt">HLC · Invoice Intelligence</div>
+      <div class="ls">Craighill Ops · v2.1 · Supabase-Backed</div>
+    </div>
+  </div>
+  <div class="hdr-c">
+    <div class="pulse" id="dbP"></div>
+    <span id="dbS">Connecting...</span>
+  </div>
+  <div class="hdr-r">
+    <select class="usel" id="usel">
+      <option value="juan">// Juan Grisales</option>
+      <option value="kim">// Kim Chan</option>
+      <option value="jacobo">// Jacobo Ospina</option>
+      <option value="dpm">// DPM (TBD)</option>
+    </select>
+    <button class="bup" onclick="document.getElementById('fi').click()">+ Upload Invoice</button>
+    <input type="file" id="fi" accept=".xlsx,.xls" multiple onchange="handleFile(event)">
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="goTab('analysis')" id="tab-analysis">Analysis <span class="tb" id="cnt-a">—</span></div>
+  <div class="tab" onclick="goTab('flags')" id="tab-flags">Flagged <span class="tb" id="cnt-f">—</span></div>
+  <div class="tab" onclick="goTab('credits')" id="tab-credits">Credits <span class="tb" id="cnt-cr">0</span></div>
+  <div class="tab" onclick="goTab('trends')" id="tab-trends">Trends</div>
+  <div class="tab" onclick="goTab('history')" id="tab-history">History <span class="tb" id="cnt-h">0</span></div>
+</div>
+
+<div class="main">
+
+<!-- ANALYSIS TAB -->
+<div class="tc active" id="tc-analysis">
+
+  <!-- VIEW MODE BAR -->
+  <div class="vbar">
+    <div class="vbar-left">
+      <span>View:</span>
+      <span class="vbar-mode" id="viewModeLabel">All Periods — Aggregate</span>
+      <span id="viewPeriodCount" style="color:var(--text3)"></span>
+    </div>
+    <div class="vbar-right">
+      <button class="vbtn vbtn-lime active" id="btnAggregate" onclick="setViewMode('aggregate')">Aggregate</button>
+      <button class="vbtn vbtn-cyan" id="btnCompare" onclick="setViewMode('compare')">Compare Periods</button>
+    </div>
+  </div>
+
+  <!-- MINI DROP ZONE -->
+  <div class="mini-dz" id="miniDz" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)" onclick="document.getElementById('fi').click()">
+    <div class="mini-dz-left">
+      <span class="mini-dz-icon">▲</span>
+      <span>Drop new Rails invoice XLSX here or click to browse</span>
+    </div>
+    <span class="badge bg">XLSX · Shipping Charges Detail</span>
+  </div>
+
+  <div class="pw" id="pw"><div class="pl" id="pl">Processing...</div><div class="pt"><div class="pf" id="pf"></div></div></div>
+  <div class="alert" id="dupAlert">▲ CROSS-PERIOD DUPLICATES DETECTED — See Flagged tab · CAT-01</div>
+
+  <!-- AGGREGATE VIEW -->
+  <div id="aggView">
+    <div class="metrics">
+      <div class="mc al"><div class="ml">Total Charges</div><div class="mv lime" id="m-tot">—</div><div class="ms" id="m-ts">Loading history...</div></div>
+      <div class="mc ac"><div class="ml">Total Cost</div><div class="mv cyan" id="m-cost">—</div><div class="ms" id="m-cs"></div></div>
+      <div class="mc aa"><div class="ml">Flagged</div><div class="mv amber" id="m-flag">—</div><div class="ms" id="m-fs"></div></div>
+      <div class="mc am"><div class="ml">Credit Exposure</div><div class="mv magenta" id="m-exp">—</div><div class="ms" id="m-es"></div></div>
+      <div class="mc"><div class="ml">FlavorCloud %</div><div class="mv" id="m-fc">—</div><div class="ms" id="m-fcs"></div></div>
+    </div>
+    <div id="catSec" style="display:none;">
+      <div class="charts-grid">
+        <div class="cpanel"><div class="ph"><div class="pt2">Carrier Cost Distribution</div></div><div class="cb"><div class="dw"><canvas id="dcv" width="140" height="140"></canvas><div class="dl" id="dleg"></div></div></div></div>
+        <div class="cpanel"><div class="ph"><div class="pt2">Flag Category Breakdown</div></div><div class="cb"><canvas id="cbcv" style="width:100%;height:160px;"></canvas></div></div>
+      </div>
+      <div class="tw">
+        <div class="ph"><div class="pt2">Category Summary</div></div>
+        <table><thead><tr><th>CAT</th><th>Label</th><th>Count</th><th>Exposure</th><th>Guidance</th></tr></thead>
+        <tbody id="catTb"></tbody></table>
+      </div>
+    </div>
+    <div class="empty" id="aggEmpty" style="display:none;">
+      <div class="empty-i">◈</div>
+      <div class="empty-t">No invoice data</div>
+      <div class="empty-s">Upload your first invoice above or select periods in the History tab</div>
+    </div>
+  </div>
+
+  <!-- COMPARE VIEW -->
+  <div id="cmpView" style="display:none;">
+    <div class="cpanel cw" style="margin-bottom:16px;">
+      <div class="ph"><div class="pt2">Cost by Period Comparison</div></div>
+      <div class="cb"><canvas id="cmpLine" style="width:100%;height:200px;"></canvas></div>
+    </div>
+    <div id="cmpCards" class="compare-grid"></div>
+    <div class="empty" id="cmpEmpty" style="display:none;">
+      <div class="empty-i">◈</div>
+      <div class="empty-t">Select 2+ periods to compare</div>
+      <div class="empty-s">Go to History tab, check multiple invoice periods, then click Load Selected</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FLAGS TAB -->
+<div class="tc" id="tc-flags">
+  <div style="background:var(--panel2);border:1px solid var(--border2);padding:8px 14px;margin-bottom:12px;font-size:10px;color:var(--text3);">
+    Showing flags from: <span id="flagsSource" style="color:var(--lime)">All loaded periods</span>
+  </div>
+  <div class="filters" id="fltChips">
+    <div class="chip active" onclick="fltFlags('ALL',this)">All</div>
+    <div class="chip" onclick="fltFlags('CAT-01',this)">CAT-01 · Duplicate</div>
+    <div class="chip" onclick="fltFlags('CAT-02',this)">CAT-02 · Misroute</div>
+    <div class="chip" onclick="fltFlags('CAT-03',this)">CAT-03 · No Order</div>
+    <div class="chip" onclick="fltFlags('CAT-04',this)">CAT-04 · FC Review</div>
+    <div class="chip" onclick="fltFlags('CAT-05',this)">CAT-05 · FC Express</div>
+    <div class="chip" onclick="fltFlags('CAT-06',this)">CAT-06 · Svc Missing</div>
+    <div class="chip" onclick="fltFlags('CAT-07',this)">CAT-07 · Media Mail</div>
+    <div class="chip" onclick="fltFlags('CAT-08',this)">CAT-08 · Pick/Pack</div>
+  </div>
+  <div class="tw">
+    <table><thead><tr><th>Order #</th><th>Period</th><th>Carrier</th><th>Service</th><th>Cty</th><th>Amount</th><th>CAT</th><th>AI Explanation</th><th></th></tr></thead>
+    <tbody id="flagsTb"></tbody></table>
+    <div class="empty" id="flagsE" style="display:none;"><div class="empty-i">✓</div><div class="empty-t">No flags for this filter</div><div class="empty-s">Try a different category or upload more invoices</div></div>
+  </div>
+</div>
+
+<!-- CREDITS TAB -->
+<div class="tc" id="tc-credits">
+  <div class="fp">
+    <div style="font-size:9px;letter-spacing:.15em;color:var(--text3);text-transform:uppercase;margin-bottom:12px;">// Log Credit Claim</div>
+    <div class="fg">
+      <div><label>Order #</label><input id="cr-o" placeholder="CRA######"></div>
+      <div><label>Carrier</label><select id="cr-c"><option value="">Select</option><option>iDrive</option><option>FlavorCloud</option><option>UPS</option><option>FedEx</option><option>DHL</option><option>OnTrac</option><option>Veho</option><option>USPS</option><option>HLC</option></select></div>
+      <div><label>Amount ($)</label><input type="number" id="cr-a" placeholder="0.00" step="0.01"></div>
+      <div><label>Category</label><select id="cr-k"><option value="">Select CAT</option><option value="CAT-01">CAT-01 · Duplicate</option><option value="CAT-02">CAT-02 · Misroute</option><option value="CAT-03">CAT-03 · No Order #</option><option value="CAT-04">CAT-04 · FC DDU Eligible</option><option value="CAT-05">CAT-05 · FC Express Verify</option><option value="CAT-06">CAT-06 · Svc Mapping Missing</option><option value="CAT-07">CAT-07 · USPS Media Mail</option><option value="CAT-08">CAT-08 · Pick/Pack Fee</option></select></div>
+    </div>
+    <div class="fg">
+      <div><label>Contact</label><input id="cr-cn" placeholder="Name"></div>
+      <div><label>Email</label><input type="email" id="cr-em" placeholder="claims@carrier.com"></div>
+      <div><label>Invoice Period</label><input id="cr-p" placeholder="Apr 2–8 2026"></div>
+      <div><label>Status</label><select id="cr-st"><option value="pending">Pending</option><option value="approved">Approved</option><option value="denied">Denied</option><option value="appealed">Appealed</option><option value="resolved">Resolved</option></select></div>
+    </div>
+    <label style="display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Notes</label>
+    <textarea class="full-input" id="cr-n" placeholder="Context, references, next steps..."></textarea>
+    <div class="fa"><button class="btn-p" onclick="saveClaim()">Save Claim</button><button class="btn-s" onclick="clearClaim()">Clear</button></div>
+  </div>
+  <div class="tw">
+    <div class="ph"><div class="pt2">Open Claims</div><div style="font-size:10px;color:var(--text3);" id="crTotal">$0.00 exposure</div></div>
+    <table><thead><tr><th>Order #</th><th>Period</th><th>Carrier</th><th>CAT</th><th>Amount</th><th>Contact</th><th>Status</th><th>Notes</th><th>By</th><th></th></tr></thead>
+    <tbody id="crTb"></tbody></table>
+    <div class="empty" id="crE"><div class="empty-i">◈</div><div class="empty-t">No claims yet</div><div class="empty-s">Claims sync live across the team</div></div>
+  </div>
+</div>
+
+<!-- TRENDS TAB -->
+<div class="tc" id="tc-trends">
+  <div class="empty" id="trE"><div class="empty-i">◈</div><div class="empty-t">Upload 2+ invoices to see trends</div><div class="empty-s">Cost over time, FlavorCloud %, avg cost per carrier</div></div>
+  <div id="trC" style="display:none;">
+    <div class="trend-grid">
+      <div class="cpanel cw"><div class="ph"><div class="pt2">Cost by Invoice Period — Shipping vs Pick/Pack</div></div><div class="cb"><canvas id="cvPeriod" style="width:100%;height:180px;"></canvas></div></div>
+      <div class="cpanel"><div class="ph"><div class="pt2">Avg Cost / Shipment by Carrier</div></div><div class="cb"><canvas id="cvAvg" style="width:100%;height:200px;"></canvas></div></div>
+      <div class="cpanel"><div class="ph"><div class="pt2">Flagged Charges % by Period</div></div><div class="cb"><canvas id="cvFc" style="width:100%;height:200px;"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY TAB -->
+<div class="tc" id="tc-history">
+  <div class="hist-controls">
+    <button class="vbtn vbtn-gray" onclick="selectAllHist()">Select All</button>
+    <button class="vbtn vbtn-gray" onclick="deselectAllHist()">Deselect All</button>
+    <span class="sel-count"><span id="selCount">0</span> periods selected</span>
+    <div class="hist-actions">
+      <button class="vbtn vbtn-lime" onclick="loadSelected('aggregate')">Load Aggregate</button>
+      <button class="vbtn vbtn-cyan" onclick="loadSelected('compare')">Compare Selected</button>
+    </div>
+  </div>
+  <div class="tw">
+    <div id="histList"></div>
+    <div class="empty" id="histE"><div class="empty-i">◈</div><div class="empty-t">No invoice history</div><div class="empty-s">Upload your first invoice to get started</div></div>
+  </div>
+</div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var SB_URL = 'https://qcpvmyholfiymflrnaav.supabase.co';
+var SB_KEY = 'sb_publishable_UTpSY6b8NYryifzSVwX4_A_TWlTG2Mf';
+var sb;
+var allUploads = [];
+var selectedUploadIds = [];
+var activeCharges = [];
+var curFlt = 'ALL';
+var viewMode = 'aggregate';
+var aKey = '';
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+function showLoad(msg, pct) {
+  document.getElementById('loadOverlay').classList.add('show');
+  document.getElementById('loadSub').textContent = msg;
+  document.getElementById('loadBar').style.width = pct + '%';
+}
+function hideLoad() { document.getElementById('loadOverlay').classList.remove('show'); }
+
+async function init() {
+  showLoad('Connecting to Supabase...', 20);
+  try {
+    sb = window.supabase.createClient(SB_URL, SB_KEY);
+    var test = await sb.from('invoice_uploads').select('id').limit(1);
+    if (test.error) throw test.error;
+    setSt('live', 'Connected · Supabase');
+
+    showLoad('Fetching API key...', 40);
+    var cfg = await sb.from('app_config').select('value').eq('key','anthropic_api_key').single();
+    if (cfg.data && cfg.data.value) {
+      aKey = cfg.data.value;
+    } else {
+      console.warn('app_config fetch result:', JSON.stringify(cfg));
+    }
+
+    showLoad('Loading invoice history...', 60);
+    await loadHistory();
+
+    showLoad('Loading all invoice data...', 80);
+    await loadAllCharges();
+
+    showLoad('Loading credits...', 90);
+    await loadCredits();
+
+    showLoad('Ready!', 100);
+    setTimeout(hideLoad, 600);
+
+    sb.channel('cr').on('postgres_changes',{event:'*',schema:'public',table:'credit_log'},function(){loadCredits();}).subscribe();
+  } catch(e) {
+    setSt('err', 'DB error — see console');
+    console.error(e);
+    hideLoad();
+  }
+}
+
+function setSt(s, m) {
+  var p = document.getElementById('dbP'), t = document.getElementById('dbS');
+  p.className = 'pulse ' + (s === 'live' ? 'live' : 'err');
+  t.textContent = m;
+  t.style.color = s === 'live' ? 'var(--lime)' : 'var(--magenta)';
+}
+
+// ── LOAD ALL CHARGES ───────────────────────────────────────────────────────
+async function loadAllCharges() {
+  if (!sb || !allUploads.length) { renderAggregate([], 'No invoices yet'); return; }
+  var ids = allUploads.map(function(u){return u.id;});
+  selectedUploadIds = ids.slice(); // select all by default
+  updateSelCount();
+
+  var charges = [];
+  for (var i = 0; i < ids.length; i++) {
+    var r = await sb.from('invoice_charges').select('*').eq('upload_id', ids[i]);
+    if (r.data) charges = charges.concat(r.data);
+  }
+  activeCharges = charges;
+  renderAggregate(charges, 'All ' + allUploads.length + ' period' + (allUploads.length !== 1 ? 's' : ''));
+  renderFlags(charges);
+  renderTrends();
+}
+
+// ── FILE HANDLING ─────────────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('miniDz').classList.remove('drag');
+  var files = Array.prototype.slice.call(e.dataTransfer.files);
+  if(!files.length) return;
+  if(files.length === 1) { procFile(files[0]); return; }
+  toast('Processing ' + files.length + ' invoices sequentially...', 'info');
+  var idx = 0;
+  function next() {
+    if(idx >= files.length) { toast('All ' + files.length + ' invoices uploaded!', 'ok'); loadHistory().then(function(){loadAllCharges();}); return; }
+    var f = files[idx++];
+    toast('Uploading ' + idx + ' of ' + files.length + ': ' + f.name.slice(0,30), 'info');
+    procFileSilent(f, next);
+  }
+  next();
+}
+function handleFile(e) {
+  var files = Array.prototype.slice.call(e.target.files);
+  if(!files.length) return;
+  e.target.value = '';
+  if(files.length === 1) { procFile(files[0]); return; }
+  // Multi-file: process sequentially
+  toast('Processing ' + files.length + ' invoices sequentially...', 'info');
+  var idx = 0;
+  function next() {
+    if(idx >= files.length) { toast('All ' + files.length + ' invoices uploaded!', 'ok'); loadHistory().then(function(){loadAllCharges();}); return; }
+    var f = files[idx++];
+    toast('Uploading ' + idx + ' of ' + files.length + ': ' + f.name.slice(0,30), 'info');
+    procFileSilent(f, next);
+  }
+  next();
+}
+
+function procFileSilent(file, callback) {
+  var user = document.getElementById('usel').value;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(e.target.result, {type:'array'});
+      var sn = null;
+      for(var i=0;i<wb.SheetNames.length;i++){if(wb.SheetNames[i].toLowerCase().indexOf('detail')>=0){sn=wb.SheetNames[i];break;}}
+      if(!sn) sn = wb.SheetNames[wb.SheetNames.length-1];
+      var raw = XLSX.utils.sheet_to_json(wb.Sheets[sn], {defval:''});
+      if(!raw.length){ if(callback) callback(); return; }
+      var charges = parseCharges(raw);
+      if(!charges.length){ toast('No recognizable charges found in "'+file.name.slice(0,40)+'". Upload a Rails Shipping Charges Detail or Pick Fee Detail export.','err'); if(callback) callback(); return; }
+      var existMap = {};
+      for(var i=0;i<activeCharges.length;i++){var c=activeCharges[i];var k=((c.order_number||'').toLowerCase())+'_'+c.charge_amount+'_'+((c.carrier||'').toLowerCase());existMap[k]=true;}
+      for(var i=0;i<charges.length;i++){var k=((charges[i].order_number||'').toLowerCase())+'_'+charges[i].charge_amount+'_'+((charges[i].carrier||'').toLowerCase());if(existMap[k]){charges[i].is_duplicate=true;charges[i].cat_code='CAT-01';charges[i].cat_label='Cross-Period Duplicate';charges[i].is_flagged=true;}}
+      var period = detectPeriod(file.name, raw);
+      var cost=0; for(var i=0;i<charges.length;i++) cost+=charges[i].charge_amount;
+      var fc=0; for(var i=0;i<charges.length;i++) if(charges[i].is_flagged) fc++;
+      sb.from('invoice_uploads').insert({uploaded_by:user,invoice_period:period,total_charges:charges.length,total_cost:cost,flagged_charges:fc}).select().single().then(function(res){
+        if(res.error){ if(callback) callback(); return; }
+        var uid = res.data.id;
+        var rows = [];
+        for(var i=0;i<charges.length;i++) rows.push(Object.assign({},charges[i],{upload_id:uid,invoice_period:period}));
+        var batches=[]; for(var i=0;i<rows.length;i+=100) batches.push(rows.slice(i,i+100));
+        var bidx=0;
+        function nb(){ if(bidx>=batches.length){ if(callback) callback(); return; } sb.from('invoice_charges').insert(batches[bidx++]).then(nb); }
+        nb();
+      });
+    } catch(err) { console.error(err); if(callback) callback(); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function procFile(file) {
+  var user = document.getElementById('usel').value;
+  prog('Reading file...', 10);
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      prog('Parsing XLSX...', 25);
+      var wb = XLSX.read(e.target.result, {type:'array'});
+      var sn = null;
+      for (var i=0;i<wb.SheetNames.length;i++) { if(wb.SheetNames[i].toLowerCase().indexOf('detail')>=0){sn=wb.SheetNames[i];break;} }
+      if(!sn) sn = wb.SheetNames[wb.SheetNames.length-1];
+      var raw = XLSX.utils.sheet_to_json(wb.Sheets[sn], {defval:''});
+      if(!raw.length){toast('No data found','err');hideProg();return;}
+
+      prog('Classifying...', 45);
+      var charges = parseCharges(raw);
+      if(!charges.length){toast('No recognizable charges found. Upload a Rails Shipping Charges Detail or Pick Fee Detail export.','err');hideProg();return;}
+
+      prog('Cross-period check...', 60);
+      var hasDups = false;
+      // Check against existing in activeCharges
+      var existMap = {};
+      for (var i=0;i<activeCharges.length;i++) {
+        var c = activeCharges[i];
+        var k = ((c.order_number||'').toLowerCase()) + '_' + c.charge_amount + '_' + ((c.carrier||'').toLowerCase());
+        existMap[k] = true;
+      }
+      for (var i=0;i<charges.length;i++) {
+        var k = ((charges[i].order_number||'').toLowerCase()) + '_' + charges[i].charge_amount + '_' + ((charges[i].carrier||'').toLowerCase());
+        if (existMap[k]) { charges[i].is_duplicate=true; charges[i].cat_code='CAT-01'; charges[i].cat_label='Cross-Period Duplicate'; charges[i].is_flagged=true; hasDups=true; }
+      }
+
+      prog('Saving to Supabase...', 80);
+      var period = detectPeriod(file.name, raw);
+      var cost = 0; for(var i=0;i<charges.length;i++) cost += charges[i].charge_amount;
+      var fc = 0; for(var i=0;i<charges.length;i++) if(charges[i].is_flagged) fc++;
+
+      sb.from('invoice_uploads').insert({uploaded_by:user, invoice_period:period, total_charges:charges.length, total_cost:cost, flagged_charges:fc}).select().single().then(function(res) {
+        if (res.error) { toast('Save error: ' + res.error.message, 'err'); hideProg(); return; }
+        var uid = res.data.id;
+        var rows = [];
+        for(var i=0;i<charges.length;i++) rows.push(Object.assign({},charges[i],{upload_id:uid,invoice_period:period}));
+        var batches = [];
+        for(var i=0;i<rows.length;i+=100) batches.push(rows.slice(i,i+100));
+        var idx = 0;
+        function nextBatch() {
+          if(idx>=batches.length){
+            prog('Done!', 100);
+            toast(charges.length + ' charges loaded · ' + fc + ' flagged', 'ok');
+            if(hasDups) document.getElementById('dupAlert').classList.add('show');
+            setTimeout(hideProg, 800);
+            loadHistory().then(function(){ loadAllCharges(); });
+            return;
+          }
+          sb.from('invoice_charges').insert(batches[idx++]).then(nextBatch);
+        }
+        nextBatch();
+      });
+    } catch(err) { console.error(err); toast('Parse error: '+err.message,'err'); hideProg(); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── PARSE & CLASSIFY ───────────────────────────────────────────────────────
+function isPickFeeFile(rows) {
+  if(!rows.length) return false;
+  var keys = Object.keys(rows[0]).join('|').toLowerCase();
+  return keys.indexOf('initial pick fee') >= 0 || keys.indexOf('additional pick fee') >= 0;
+}
+
+function parseCharges(rows) {
+  var result = [];
+  if(isPickFeeFile(rows)) {
+    for(var i=0;i<rows.length;i++) {
+      var row = rows[i], rk = Object.keys(row);
+      var getPF = function() {
+        for(var n=0;n<arguments.length;n++) {
+          var name=arguments[n];
+          for(var j=0;j<rk.length;j++){if(rk[j].toLowerCase()===name.toLowerCase()&&row[rk[j]]!==null&&row[rk[j]]!==undefined&&row[rk[j]]!=='')return String(row[rk[j]]);}
+        }return '';
+      };
+      var getNPF = function(){var s=getPF.apply(null,arguments);return parseFloat(s.replace(/[^0-9.-]/g,''))||0;};
+      var ord = getPF('Order Number').replace(/^#/,'')||null;
+      var car = getPF('Carrier Name')||'HLC';
+      var cty = getPF('Ship Recipient Address Country')||'US';
+      var zip = getPF('Ship Recipient Address Postal Code');
+      var wt  = getNPF('Weight Value');
+      var pkg = getPF('Package Type Name');
+      var initAmt = getNPF('Initial Pick Fee - Amount ($)');
+      var initQty = getNPF('Initial Pick Fee - Quantity')||1;
+      var addAmt  = getNPF('Additional Pick Fee - Amount ($)');
+      var addQty  = getNPF('Additional Pick Fee - Quantity')||1;
+      if(initAmt > 0) result.push({order_number:ord,carrier:'HLC',service_type:'Initial Pick Fee',charge_amount:+(initAmt*initQty).toFixed(2),charge_description:'Initial Pick Fee — '+pkg,destination_country:cty,destination_zip:zip,weight:wt,cat_code:'CAT-08',cat_label:'Pick/Pack Fee',is_flagged:false,is_duplicate:false,duplicate_of_id:null,claude_explanation:null});
+      if(addAmt > 0) result.push({order_number:ord,carrier:'HLC',service_type:'Additional Pick Fee',charge_amount:+(addAmt*addQty).toFixed(2),charge_description:'Additional Pick Fee — '+pkg,destination_country:cty,destination_zip:zip,weight:wt,cat_code:'CAT-08',cat_label:'Pick/Pack Fee',is_flagged:false,is_duplicate:false,duplicate_of_id:null,claude_explanation:null});
+    }
+    return result;
+  }
+  for(var i=0;i<rows.length;i++) {
+    var row = rows[i], rk = Object.keys(row);
+    var get = function() {
+      for(var n=0;n<arguments.length;n++) {
+        var name=arguments[n], k=null;
+        for(var j=0;j<rk.length;j++){if(rk[j]===name){k=rk[j];break;}}
+        if(!k){for(var j=0;j<rk.length;j++){if(rk[j].toLowerCase()===name.toLowerCase()){k=rk[j];break;}}}
+        if(k!==null&&row[k]!==null&&row[k]!==undefined&&row[k]!=='')return String(row[k]);
+      }return '';
+    };
+    var getN = function(){var s=get.apply(null,arguments);return parseFloat(s.replace(/[^0-9.-]/g,''))||0;};
+    var ord=get('Order Number','order_number'),car=get('Carrier','carrier'),svc=get('Service Level','service_level','Service Level Name');
+    var amt=getN('Charge Amount ($)','charge_amount'),cty=get('Ship To Country','ship_to_country'),zip=get('Ship To Zip','ship_to_zip'),wt=getN('Package Weight','package_weight');
+    var cls=classify(ord,car,svc,amt,cty);
+    if(amt>0) result.push({order_number:ord.replace(/^#/,'')||null,carrier:car||'Unknown',service_type:svc,charge_amount:amt,charge_description:svc,destination_country:cty,destination_zip:zip,weight:wt,cat_code:cls.cat_code,cat_label:cls.cat_label,is_flagged:cls.is_flagged,is_duplicate:false,duplicate_of_id:null,claude_explanation:null});
+  }
+  return result;
+}
+
+function classify(ord, car, svc, amt, cty) {
+  var sv=(svc||'').toLowerCase().trim(), ca=(car||'').toLowerCase(), or=(ord||'').toString().trim();
+  var isIntl=cty&&cty!=='US'&&cty!=='United States'&&cty!=='';
+  var isFc=ca.indexOf('flavorcloud')>=0||ca.indexOf('flavor')>=0;
+  var fl=[];
+  if(!or||or==='nan'||or==='null')fl.push('CAT-03');
+  if(sv==='service mapping not present')fl.push('CAT-06');
+  if(sv.indexOf('media mail')>=0)fl.push('CAT-07');
+  if(isFc&&isIntl&&sv==='standard')fl.push('CAT-04');
+  if(isFc&&isIntl&&sv==='express')fl.push('CAT-05');
+  if(isFc&&amt>100&&fl.indexOf('CAT-04')<0&&fl.indexOf('CAT-05')<0)fl.push('CAT-05');
+  if((or.toUpperCase().indexOf('MO-')===0)&&isFc)fl.push('CAT-02');
+  if(!fl.length)return{cat_code:null,cat_label:null,is_flagged:false};
+  var prio=['CAT-01','CAT-02','CAT-03','CAT-04','CAT-05','CAT-06','CAT-07'],cc=null;
+  for(var i=0;i<prio.length;i++){if(fl.indexOf(prio[i])>=0){cc=prio[i];break;}}
+  if(!cc)cc=fl[0];
+  var LBL={'CAT-01':'Duplicate Charge','CAT-02':'Manual Order Misroute','CAT-03':'No Order Number','CAT-04':'FlavorCloud Standard — Needs Review','CAT-05':'FlavorCloud Express — Needs Review','CAT-06':'Service Mapping Missing','CAT-07':'USPS Media Mail — Invalid','CAT-08':'Pick/Pack Fee'};
+  return{cat_code:cc,cat_label:LBL[cc],is_flagged:true};
+}
+
+function detectPeriod(fn, rows) {
+  var m=fn.match(/(\d{4}-\d{2}-\d{2})/g);
+  if(m&&m.length>=2)return m[0]+' – '+m[1];
+  if(m&&m.length===1)return m[0];
+  var dates=[];
+  for(var i=0;i<rows.length;i++){var d=rows[i]['Charge Date']||rows[i]['Ship Date']||rows[i]['Order Date'];if(d)dates.push(String(d).slice(0,10));}
+  if(dates.length){dates.sort();return dates[0]===dates[dates.length-1]?dates[0]:dates[0]+' – '+dates[dates.length-1];}
+  return new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+// ── VIEW MODE ─────────────────────────────────────────────────────────────
+function setViewMode(mode) {
+  viewMode = mode;
+  document.getElementById('btnAggregate').classList.toggle('active', mode==='aggregate');
+  document.getElementById('btnCompare').classList.toggle('active', mode==='compare');
+  document.getElementById('aggView').style.display = mode==='aggregate' ? 'block' : 'none';
+  document.getElementById('cmpView').style.display = mode==='compare' ? 'block' : 'none';
+  if (mode==='compare') renderCompare();
+}
+
+// ── RENDER AGGREGATE ───────────────────────────────────────────────────────
+function renderAggregate(charges, label) {
+  document.getElementById('viewModeLabel').textContent = label + ' — Aggregate';
+  var tot=charges.length;
+  if(!tot){
+    document.getElementById('catSec').style.display='none';
+    document.getElementById('aggEmpty').style.display='block';
+    setText('m-tot','0');setText('m-ts',label);
+    setText('m-cost','$0');setText('m-flag','0');setText('m-exp','$0');setText('m-fc','0%');
+    setText('cnt-a','0');setText('cnt-f','0');
+    return;
+  }
+  document.getElementById('aggEmpty').style.display='none';
+  var cost=0;for(var i=0;i<charges.length;i++)cost+=charges[i].charge_amount;
+  var fl=[];for(var i=0;i<charges.length;i++)if(charges[i].is_flagged)fl.push(charges[i]);
+  var fc=[];for(var i=0;i<charges.length;i++)if((charges[i].carrier||'').toLowerCase().indexOf('flavor')>=0)fc.push(charges[i]);
+  var flCost=0;for(var i=0;i<fl.length;i++)flCost+=fl[i].charge_amount;
+  var fcCost=0;for(var i=0;i<fc.length;i++)fcCost+=fc[i].charge_amount;
+  var fcPct=cost>0?(fcCost/cost*100).toFixed(1):0;
+  setText('m-tot',tot.toLocaleString());setText('m-ts',label);
+  setText('m-cost','$'+fmt(cost));setText('m-cs','$'+(cost/tot).toFixed(2)+' avg');
+  setText('m-flag',fl.length);setText('m-fs',(fl.length/tot*100).toFixed(1)+'% of volume');
+  setText('m-exp','$'+fmt(flCost));setText('m-es',fl.length+' charges');
+  setText('m-fc',fcPct+'%');setText('m-fcs','$'+fmt(fcCost)+' of spend');
+  setText('cnt-a',tot);setText('cnt-f',fl.length);
+  var cats={};
+  for(var i=0;i<fl.length;i++){var c=fl[i];if(!cats[c.cat_code])cats[c.cat_code]={label:c.cat_label,count:0,cost:0};cats[c.cat_code].count++;cats[c.cat_code].cost+=c.charge_amount;}
+  var GUIDE={
+    'CAT-01':'File credit claim immediately — confirmed duplicate billing',
+    'CAT-02':'Manual order misrouted — confirm origin with Sherilynn before escalating',
+    'CAT-03':'Investigate with HLC — charge cannot be reconciled to any order',
+    'CAT-04':'Review each order: DTC DDP via FlavorCloud is expected · B2B should be DDU via UPS/FedEx direct',
+    'CAT-05':'Review each order: verify Express routing was intentional · use ✦ AI for per-charge analysis',
+    'CAT-06':'Fix service mapping in Packiyo/HLC config — carrier profile gap',
+    'CAT-07':'Contact HLC to correct — Media Mail is restricted to books/media only, never merchandise',
+    'CAT-08':'Pick/pack fees from HLC — review totals and avg per order for cost benchmarking'
+  };
+  var CB={'CAT-01':'bm','CAT-02':'bm','CAT-03':'ba','CAT-04':'ba','CAT-05':'bc','CAT-06':'bg','CAT-07':'bg','CAT-08':'bg'};
+  var html='';
+  for(var k in cats){var d=cats[k];html+='<tr><td><span class="badge '+(CB[k]||'bg')+'">'+k+'</span></td><td style="color:var(--text)">'+d.label+'</td><td style="font-family:var(--mono);color:var(--text)">'+d.count+'</td><td style="font-family:var(--mono);color:var(--magenta)">$'+fmt(d.cost)+'</td><td style="font-size:10px;color:var(--text2);max-width:300px">'+(GUIDE[k]||'Review')+'</td></tr>';}
+  // CAT-08 pick fees — informational row from all charges (not flagged)
+  var pf={count:0,cost:0};
+  for(var i=0;i<charges.length;i++){if(charges[i].cat_code==='CAT-08'){pf.count++;pf.cost+=charges[i].charge_amount;}}
+  if(pf.count>0){html+='<tr style="border-top:1px solid var(--border2)"><td><span class="badge bg">CAT-08</span></td><td style="color:var(--text)">Pick/Pack Fee</td><td style="font-family:var(--mono);color:var(--text)">'+pf.count+'</td><td style="font-family:var(--mono);color:var(--cyan)">$'+fmt(pf.cost)+'</td><td style="font-size:10px;color:var(--text2);max-width:300px">'+GUIDE['CAT-08']+'</td></tr>';}
+  document.getElementById('catTb').innerHTML=html;
+  document.getElementById('catSec').style.display='block';
+  drawDonut(charges);drawCatBar(cats);
+}
+
+// ── COMPARE VIEW ───────────────────────────────────────────────────────────
+async function renderCompare() {
+  var selIds = getSelectedIds();
+  var cmpEmpty = document.getElementById('cmpEmpty');
+  var cmpCards = document.getElementById('cmpCards');
+  if(selIds.length < 2){cmpEmpty.style.display='block';cmpCards.innerHTML='';return;}
+  cmpEmpty.style.display='none';
+
+  var periods = [];
+  for(var i=0;i<selIds.length;i++){
+    var up = null;
+    for(var j=0;j<allUploads.length;j++){if(allUploads[j].id===selIds[i]){up=allUploads[j];break;}}
+    if(!up)continue;
+    var r = await sb.from('invoice_charges').select('*').eq('upload_id',selIds[i]);
+    var charges = r.data || [];
+    var cost=0;for(var k=0;k<charges.length;k++)cost+=charges[k].charge_amount;
+    var fl=[];for(var k=0;k<charges.length;k++)if(charges[k].is_flagged)fl.push(charges[k]);
+    var fc=[];for(var k=0;k<charges.length;k++)if((charges[k].carrier||'').toLowerCase().indexOf('flavor')>=0)fc.push(charges[k]);
+    var fcCost=0;for(var k=0;k<fc.length;k++)fcCost+=fc[k].charge_amount;
+    periods.push({period:up.invoice_period,charges:charges.length,cost:cost,flagged:fl.length,fcPct:cost>0?(fcCost/cost*100).toFixed(1):0,fcCost:fcCost});
+  }
+
+  var COLS=['#b8ff3c','#00e5ff','#ff2d9b','#ffaa00','#7c3aed','#ff6b35','#50d0a0'];
+  var cols = Math.min(periods.length, 4);
+  cmpCards.style.gridTemplateColumns = 'repeat('+cols+',1fr)';
+  var html='';
+  for(var i=0;i<periods.length;i++){
+    var p=periods[i], col=COLS[i%COLS.length];
+    html+='<div class="cmp-card" style="border-top-color:'+col+'"><div class="cmp-period">'+p.period+'</div>';
+    html+='<div class="cmp-stats">';
+    html+='<div><div class="cmp-stat-lbl">Charges</div><div class="cmp-stat-val" style="color:'+col+'">'+p.charges.toLocaleString()+'</div></div>';
+    html+='<div><div class="cmp-stat-lbl">Total Cost</div><div class="cmp-stat-val" style="color:var(--cyan)">$'+fmt(p.cost)+'</div></div>';
+    html+='<div><div class="cmp-stat-lbl">Flagged</div><div class="cmp-stat-val" style="color:var(--amber)">'+p.flagged+'</div></div>';
+    html+='<div><div class="cmp-stat-lbl">FC %</div><div class="cmp-stat-val" style="color:var(--magenta)">'+p.fcPct+'%</div></div>';
+    html+='</div></div>';
+  }
+  cmpCards.innerHTML = html;
+
+  // Draw comparison line chart
+  var cv = document.getElementById('cmpLine');
+  drawLine(cv, periods.map(function(p){return p.period.slice(0,10);}), periods.map(function(p){return p.cost;}), '#b8ff3c');
+  document.getElementById('viewModeLabel').textContent = selIds.length + ' periods — Compare';
+}
+
+// ── HISTORY ────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  if(!sb)return;
+  var r = await sb.from('invoice_uploads').select('*').order('created_at',{ascending:false});
+  allUploads = r.data || [];
+  setText('cnt-h', allUploads.length);
+  var list = document.getElementById('histList');
+  var em = document.getElementById('histE');
+  if(!allUploads.length){list.innerHTML='';em.style.display='block';return;}
+  em.style.display='none';
+  var html='';
+  for(var i=0;i<allUploads.length;i++){
+    var u=allUploads[i];
+    var isSelected = selectedUploadIds.indexOf(u.id)>=0;
+    html+='<div class="hist-row'+(isSelected?' selected':'')+'" id="hrow-'+u.id+'">';
+    html+='<input type="checkbox" class="hist-cb" id="hcb-'+u.id+'"'+(isSelected?' checked':'')+' onchange="toggleSel(\''+u.id+'\')">';
+    html+='<div class="hist-info"><div class="hist-period">'+(u.invoice_period||'Unknown period')+'</div>';
+    html+='<div class="hist-meta">Uploaded by '+u.uploaded_by+' · '+new Date(u.created_at).toLocaleDateString()+'</div></div>';
+    html+='<div class="hist-stats"><span class="badge bg">'+u.total_charges+' charges</span><span class="badge ba">'+u.flagged_charges+' flagged</span>';
+    html+='<span style="font-family:var(--mono);font-size:11px;color:var(--text2)">$'+fmt(u.total_cost||0)+'</span></div>';
+    html+='<button class="bsm" style="margin-left:auto;color:var(--magenta);border-color:rgba(255,45,85,.3);flex-shrink:0" onclick="deleteUpload(\''+u.id+'\',event)">✕ DELETE</button></div>';
+  }
+  list.innerHTML = html;
+}
+
+async function deleteUpload(id, e) {
+  e.stopPropagation();
+  if(!confirm('Delete this invoice period and all its charges? This cannot be undone.')) return;
+  await sb.from('invoice_charges').delete().eq('upload_id', id);
+  await sb.from('invoice_uploads').delete().eq('id', id);
+  selectedUploadIds = selectedUploadIds.filter(function(x){return x!==id;});
+  toast('Invoice period deleted','ok');
+  await loadHistory();
+  await loadAllCharges();
+}
+
+function toggleSel(id) {
+  var idx = selectedUploadIds.indexOf(id);
+  if(idx>=0) selectedUploadIds.splice(idx,1); else selectedUploadIds.push(id);
+  var row = document.getElementById('hrow-'+id);
+  if(row) row.classList.toggle('selected', selectedUploadIds.indexOf(id)>=0);
+  updateSelCount();
+}
+
+function selectAllHist() {
+  selectedUploadIds = allUploads.map(function(u){return u.id;});
+  for(var i=0;i<allUploads.length;i++){
+    var cb=document.getElementById('hcb-'+allUploads[i].id);if(cb)cb.checked=true;
+    var row=document.getElementById('hrow-'+allUploads[i].id);if(row)row.classList.add('selected');
+  }
+  updateSelCount();
+}
+
+function deselectAllHist() {
+  selectedUploadIds = [];
+  for(var i=0;i<allUploads.length;i++){
+    var cb=document.getElementById('hcb-'+allUploads[i].id);if(cb)cb.checked=false;
+    var row=document.getElementById('hrow-'+allUploads[i].id);if(row)row.classList.remove('selected');
+  }
+  updateSelCount();
+}
+
+function updateSelCount() {
+  setText('selCount', selectedUploadIds.length);
+}
+
+function getSelectedIds() {
+  return selectedUploadIds.slice();
+}
+
+async function loadSelected(mode) {
+  var ids = getSelectedIds();
+  if(!ids.length){toast('Select at least one invoice period','warn');return;}
+  toast('Loading '+ids.length+' period'+(ids.length!==1?'s':'')+'...','info');
+
+  var charges = [];
+  for(var i=0;i<ids.length;i++){
+    var r = await sb.from('invoice_charges').select('*').eq('upload_id',ids[i]);
+    if(r.data) charges = charges.concat(r.data);
+  }
+  activeCharges = charges;
+
+  var label = ids.length === allUploads.length ? 'All '+ids.length+' periods' : ids.length+' selected period'+(ids.length!==1?'s':'');
+  setText('flagsSource', label);
+
+  if(mode==='aggregate'){
+    setViewMode('aggregate');
+    renderAggregate(charges, label);
+    renderFlags(charges);
+    goTab('analysis');
+  } else {
+    setViewMode('compare');
+    renderCompare();
+    goTab('analysis');
+  }
+  renderTrends();
+  toast('Loaded '+charges.length+' charges across '+ids.length+' period'+(ids.length!==1?'s':''),'ok');
+}
+
+// ── CHARTS ─────────────────────────────────────────────────────────────────
+// ── DPI-AWARE CANVAS SETUP ───────────────────────────────────────────────
+function setupCanvas(cv, w, h) {
+  var dpr = window.devicePixelRatio || 1;
+  cv.width = w * dpr;
+  cv.height = h * dpr;
+  cv.style.width = w + 'px';
+  cv.style.height = h + 'px';
+  var ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return ctx;
+}
+
+function drawDonut(charges) {
+  var cv=document.getElementById('dcv'),W=140,R=55,ri=35;
+  var ctx=setupCanvas(cv,W,W);
+  var cars={};
+  for(var i=0;i<charges.length;i++){var n=charges[i].carrier||'Unknown';cars[n]=(cars[n]||0)+charges[i].charge_amount;}
+  var sorted=[];for(var n in cars)sorted.push([n,cars[n]]);sorted.sort(function(a,b){return b[1]-a[1];});
+  var tot=0;for(var i=0;i<sorted.length;i++)tot+=sorted[i][1];
+  var COLS=['#b8ff3c','#00e5ff','#ff2d9b','#ffaa00','#7c3aed','#ff6b35','#50d0a0'];
+  var cx=W/2,cy=W/2,angle=-Math.PI/2;
+  for(var i=0;i<sorted.length;i++){var sl=(sorted[i][1]/tot)*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,angle,angle+sl);ctx.closePath();ctx.fillStyle=COLS[i%COLS.length];ctx.fill();angle+=sl;}
+  ctx.beginPath();ctx.arc(cx,cy,ri,0,Math.PI*2);ctx.fillStyle='#060608';ctx.fill();
+  ctx.fillStyle='#b8ff3c';ctx.font='bold 13px Rajdhani,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(sorted.length+' carriers',cx,cy-2);ctx.font='11px Share Tech Mono,monospace';
+  var legHtml='';
+  for(var i=0;i<Math.min(sorted.length,7);i++)legHtml+='<div class="li"><div class="ld" style="background:'+COLS[i%COLS.length]+'"></div><span style="flex:1">'+sorted[i][0]+'</span><span style="font-family:var(--mono);font-size:10px;color:var(--text3)">$'+fmt(sorted[i][1])+'</span><span style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-left:6px">'+(sorted[i][1]/tot*100).toFixed(0)+'%</span></div>';
+  document.getElementById('dleg').innerHTML=legHtml;
+}
+
+function drawCatBar(cats) {
+  var cv=document.getElementById('cbcv');
+  var W=cv.parentElement.offsetWidth||400,H=160;
+  var ctx=setupCanvas(cv,W,H);ctx.clearRect(0,0,W,H);
+  var entries=[];for(var k in cats)entries.push([k,cats[k]]);if(!entries.length)return;
+  var maxC=0;for(var i=0;i<entries.length;i++)if(entries[i][1].cost>maxC)maxC=entries[i][1].cost;
+  var bw=Math.floor((W-40)/entries.length)-6;
+  var CC={'CAT-01':'#ff2d9b','CAT-02':'#ff2d9b','CAT-03':'#ffaa00','CAT-04':'#ffaa00','CAT-05':'#00e5ff','CAT-06':'#555577','CAT-07':'#555577','CAT-08':'#7c3aed'};
+  for(var i=0;i<entries.length;i++){
+    var k=entries[i][0],d=entries[i][1],bh=maxC>0?Math.floor((d.cost/maxC)*(H-45)):0;
+    var x=20+i*(bw+6),y=H-30-bh,col=CC[k]||'#555577';
+    ctx.shadowColor=col;ctx.shadowBlur=6;ctx.fillStyle=col+'33';ctx.fillRect(x,y,bw,bh);ctx.shadowBlur=0;
+    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.strokeRect(x,y,bw,bh);
+    ctx.fillStyle='#55557a';ctx.font='11px Share Tech Mono,monospace';ctx.textAlign='center';ctx.fillText(k,x+bw/2,H-16);
+    ctx.fillStyle=col;ctx.font='bold 13px Rajdhani,sans-serif';ctx.fillText(d.count,x+bw/2,y-5);
+  }
+}
+
+function drawLine(cv, labels, data, color) {
+  if(!cv)return;
+  var W=cv.parentElement?cv.parentElement.offsetWidth||600:600;
+  var H=parseInt(cv.style.height)||180;
+  var ctx=setupCanvas(cv,W,H);ctx.clearRect(0,0,W,H);
+  if(!data.length)return;
+  var pad={t:20,r:20,b:36,l:65},iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
+  var maxV=0;for(var i=0;i<data.length;i++)if(data[i]>maxV)maxV=data[i];if(!maxV)maxV=1;
+  ctx.strokeStyle='#1e1e2e';ctx.lineWidth=1;
+  for(var i=0;i<=4;i++){var y=pad.t+iH-(i/4)*iH;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+iW,y);ctx.stroke();ctx.fillStyle='#44445a';ctx.font='11px Share Tech Mono,monospace';ctx.textAlign='right';ctx.fillText('$'+Math.round(maxV*i/4).toLocaleString(),pad.l-4,y+3);}
+  ctx.beginPath();
+  for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1||1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+  ctx.lineTo(pad.l+iW,pad.t+iH);ctx.lineTo(pad.l,pad.t+iH);ctx.closePath();
+  var g=ctx.createLinearGradient(0,pad.t,0,pad.t+iH);g.addColorStop(0,color+'33');g.addColorStop(1,color+'05');ctx.fillStyle=g;ctx.fill();
+  ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=6;
+  for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1||1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+  ctx.stroke();ctx.shadowBlur=0;
+  for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1||1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=8;ctx.fill();ctx.shadowBlur=0;}
+  ctx.fillStyle='#44445a';ctx.font='11px Share Tech Mono,monospace';ctx.textAlign='center';
+  for(var i=0;i<labels.length;i++){var x=pad.l+i/(labels.length-1||1)*iW;ctx.fillText(labels[i].slice(5)||labels[i],x,H-8);}
+}
+
+function drawDualLine(cv, labels, data1, data2, color1, color2, label1, label2) {
+  if(!cv)return;
+  var W=cv.parentElement?cv.parentElement.offsetWidth||600:600;
+  var H=parseInt(cv.style.height)||180;
+  var ctx=setupCanvas(cv,W,H);ctx.clearRect(0,0,W,H);
+  var pad={t:28,r:20,b:36,l:75},iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
+  var allVals=data1.concat(data2);
+  var maxV=0;for(var i=0;i<allVals.length;i++)if(allVals[i]>maxV)maxV=allVals[i];if(!maxV)maxV=1;
+  // grid
+  ctx.strokeStyle='#1e1e2e';ctx.lineWidth=1;
+  for(var i=0;i<=4;i++){var y=pad.t+iH-(i/4)*iH;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+iW,y);ctx.stroke();ctx.fillStyle='#44445a';ctx.font='11px Share Tech Mono,monospace';ctx.textAlign='right';ctx.fillText('$'+Math.round(maxV*i/4).toLocaleString(),pad.l-4,y+3);}
+  // draw series
+  var drawSeries = function(data, color) {
+    if(data.length < 2) return;
+    ctx.beginPath();
+    for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+    ctx.lineTo(pad.l+(data.length-1)/(data.length-1)*iW,pad.t+iH);ctx.lineTo(pad.l,pad.t+iH);ctx.closePath();
+    var g=ctx.createLinearGradient(0,pad.t,0,pad.t+iH);g.addColorStop(0,color+'22');g.addColorStop(1,color+'03');ctx.fillStyle=g;ctx.fill();
+    ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=6;
+    for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+    ctx.stroke();ctx.shadowBlur=0;
+    for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=8;ctx.fill();ctx.shadowBlur=0;}
+  }
+  drawSeries(data1, color1);
+  drawSeries(data2, color2);
+  // x labels
+  ctx.fillStyle='#44445a';ctx.font='11px Share Tech Mono,monospace';ctx.textAlign='center';
+  for(var i=0;i<labels.length;i++){var x=pad.l+i/(labels.length-1||1)*iW;ctx.fillText(labels[i].slice(5)||labels[i],x,H-8);}
+  // legend top-left
+  ctx.font='10px Share Tech Mono,monospace';ctx.textAlign='left';
+  ctx.fillStyle=color1;ctx.fillRect(pad.l,6,16,6);ctx.fillStyle='#88889a';ctx.fillText(label1,pad.l+20,13);
+  ctx.fillStyle=color2;ctx.fillRect(pad.l+120,6,16,6);ctx.fillStyle='#88889a';ctx.fillText(label2,pad.l+140,13);
+}
+
+function drawHBar(id, labels, data, color) {
+  var cv=document.getElementById(id);if(!cv)return;
+  var W=cv.parentElement.offsetWidth||400,H=parseInt(cv.style.height)||200;
+  var ctx=setupCanvas(cv,W,H);ctx.clearRect(0,0,W,H);
+  var maxV=0;for(var i=0;i<data.length;i++)if(data[i]>maxV)maxV=data[i];if(!maxV)maxV=1;
+  var bH=Math.floor((H-20)/labels.length)-4,lW=82;
+  for(var i=0;i<labels.length;i++){
+    var y=10+i*(bH+4),bLen=Math.floor((data[i]||0)/maxV*(W-lW-52));
+    ctx.fillStyle='#66668a';ctx.font='11px Share Tech Mono,monospace';ctx.textAlign='right';ctx.fillText(labels[i].slice(0,10),lW-6,y+bH/2+4);
+    ctx.shadowColor=color;ctx.shadowBlur=4;ctx.fillStyle=color+'22';ctx.fillRect(lW,y,bLen,bH);ctx.strokeStyle=color;ctx.lineWidth=1;ctx.strokeRect(lW,y,bLen,bH);ctx.shadowBlur=0;
+    ctx.fillStyle=color;ctx.font='bold 12px Rajdhani,sans-serif';ctx.textAlign='left';ctx.fillText('$'+data[i],lW+bLen+6,y+bH/2+4);
+  }
+}
+
+// ── FLAGS ─────────────────────────────────────────────────────────────────
+function renderFlags(charges) { applyFlt(curFlt, charges); }
+function fltFlags(cat, el) { var ch=document.querySelectorAll('#fltChips .chip');for(var i=0;i<ch.length;i++)ch[i].classList.remove('active');el.classList.add('active');curFlt=cat;applyFlt(cat,activeCharges); }
+
+function applyFlt(cat, charges) {
+  if(!charges) charges = activeCharges;
+  var fl=[];for(var i=0;i<charges.length;i++)if(charges[i].is_flagged)fl.push(charges[i]);
+  var filtered=cat==='ALL'?fl:[];
+  if(cat!=='ALL'){for(var i=0;i<fl.length;i++)if(fl[i].cat_code===cat)filtered.push(fl[i]);}
+  var tb=document.getElementById('flagsTb'),em=document.getElementById('flagsE');
+  if(!filtered.length){tb.innerHTML='';em.style.display='block';return;}em.style.display='none';
+  var CB={'CAT-01':'bm','CAT-02':'bm','CAT-03':'ba','CAT-04':'ba','CAT-05':'bc','CAT-06':'bg','CAT-07':'bg','CAT-08':'bg'};
+  var html='';
+  for(var i=0;i<filtered.length;i++){
+    var c=filtered[i];
+    var explHtml=c.claude_explanation?'<div class="expl">'+c.claude_explanation+'</div>':'<span class="expl-e">Not yet explained</span>';
+    html+='<tr><td style="font-family:var(--mono);color:var(--text)">'+(c.order_number||'<span style="color:var(--text3)">NULL</span>')+'</td>';
+    html+='<td style="font-size:10px;color:var(--text3)">'+(c.invoice_period||'—')+'</td>';
+    html+='<td>'+c.carrier+'</td><td style="color:var(--text3);font-size:10px">'+(c.service_type||'—')+'</td>';
+    html+='<td style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+(c.destination_country||'US')+'</td>';
+    html+='<td style="font-family:var(--mono);color:var(--magenta)">$'+(c.charge_amount||0).toFixed(2)+'</td>';
+    html+='<td><span class="badge '+(CB[c.cat_code]||'bg')+'">'+c.cat_code+'</span></td>';
+    html+='<td id="expl-'+i+'">'+explHtml+'</td>';
+    html+='<td><button class="bsm bsm-lime" onclick="explainC('+i+',\''+esc(c.cat_code)+'\',\''+esc(c.carrier)+'\',\''+esc(c.service_type)+'\','+c.charge_amount+',\''+esc(c.order_number)+'\',\''+esc(c.destination_country)+'\')">✦ AI</button></td></tr>';
+  }
+  tb.innerHTML=html;
+}
+
+// ── CLAUDE AI ─────────────────────────────────────────────────────────────
+function explainC(idx, cat, carrier, service, amount, order, country) {
+  var el=document.getElementById('expl-'+idx);
+  el.innerHTML='<div class="expl loading">// Claude analyzing...</div>';
+  if(!aKey){
+    var k = prompt('Enter your Anthropic API key (one-time fallback):');
+    if(!k){toast('API key required for AI explanations','err');return;}
+    aKey = k;
+  }
+  var DESC={'CAT-01':'cross-period duplicate — same order, amount, carrier already billed in a prior invoice','CAT-02':'manual Packiyo order misrouted through FlavorCloud — should be UPS/FedEx DDU direct','CAT-03':'no order number — cannot reconcile to Shopify or BrightPearl','CAT-04':'FlavorCloud Standard on international order — review: DTC DDP is expected but B2B should be DDU via UPS/FedEx direct','CAT-05':'FlavorCloud Express on international order — review: verify if intentional rush or default routing error','CAT-06':'service mapping not present — HLC/Packiyo config gap','CAT-07':'USPS Media Mail — only valid for books/media, never merchandise','CAT-08':'HLC pick/pack fee — initial pick plus additional pick charges per order fulfillment'};
+  var prompt = 'You are an ops analyst for Craighill, a NYC design brand. Write ONE plain-English sentence explaining this shipping invoice anomaly and what action to take. Be specific about dollars. Start with "This $'+amount.toFixed(2)+' charge..."\n\nFlag: '+cat+' — '+(DESC[cat]||'billing anomaly')+'\nCarrier: '+carrier+' | Service: '+(service||'unknown')+' | Amount: $'+amount+' | Order: '+(order||'NULL')+' | Country: '+(country||'US');
+  fetch('https://qcpvmyholfiymflrnaav.supabase.co/functions/v1/explain-charge',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
+    body:JSON.stringify({prompt:prompt, apiKey:aKey})
+  }).then(function(r){return r.json();}).then(function(d){
+    var t=d.text||d.error||'Unable to generate explanation.';
+    el.innerHTML='<div class="expl">'+t+'</div>';
+  }).catch(function(err){
+    console.error('AI error:',err);
+    el.innerHTML='<span class="expl-e">API error — check console</span>';
+  });
+}
+
+// ── TRENDS ─────────────────────────────────────────────────────────────────
+function renderTrends() {
+  if(allUploads.length<2){document.getElementById('trE').style.display='block';document.getElementById('trC').style.display='none';return;}
+  document.getElementById('trE').style.display='none';document.getElementById('trC').style.display='block';
+  var periods=allUploads.slice().reverse();
+  var labels=periods.map(function(u){return(u.invoice_period||'?').slice(0,10);});
+
+  // build per-upload shipping vs pick fee costs keyed by upload_id
+  var shipById={}, pickById={};
+  for(var i=0;i<activeCharges.length;i++){
+    var c=activeCharges[i], uid=c.upload_id;
+    if(!uid) continue;
+    if(c.cat_code==='CAT-08'){if(!pickById[uid])pickById[uid]=0;pickById[uid]+=c.charge_amount||0;}
+    else{if(!shipById[uid])shipById[uid]=0;shipById[uid]+=c.charge_amount||0;}
+  }
+  var shipData=periods.map(function(u){return shipById[u.id]||0;});
+  var pickData=periods.map(function(u){return pickById[u.id]||0;});
+
+  var cv1=document.getElementById('cvPeriod');
+  if(cv1) drawDualLine(cv1,labels,shipData,pickData,'#b8ff3c','#7c3aed','Shipping','Pick/Pack');
+
+  var cv2=document.getElementById('cvFc');if(cv2)drawLine(cv2,labels,periods.map(function(u){return u.total_charges>0?+((u.flagged_charges/u.total_charges)*100).toFixed(1):0;}),'#ff2d9b');
+
+  // avg cost bar — exclude CAT-08 pick fees
+  var shippingOnly=[];for(var i=0;i<activeCharges.length;i++)if(activeCharges[i].cat_code!=='CAT-08')shippingOnly.push(activeCharges[i]);
+  if(shippingOnly.length){
+    var cars={};
+    for(var i=0;i<shippingOnly.length;i++){var n=shippingOnly[i].carrier||'Unknown';if(!cars[n])cars[n]={t:0,cnt:0};cars[n].t+=shippingOnly[i].charge_amount||0;cars[n].cnt++;}
+    var sorted=[];for(var n in cars)sorted.push([n,cars[n]]);sorted.sort(function(a,b){return b[1].t-a[1].t;});sorted=sorted.slice(0,6);
+    drawHBar('cvAvg',sorted.map(function(x){return x[0];}),sorted.map(function(x){return+(x[1].t/x[1].cnt).toFixed(2);}),'#00e5ff');
+  }
+}
+
+// ── CREDITS ────────────────────────────────────────────────────────────────
+async function saveClaim() {
+  var amount=parseFloat(document.getElementById('cr-a').value);
+  if(!amount||isNaN(amount)){toast('Amount required','err');return;}
+  var user=document.getElementById('usel').value,cat=gv('cr-k');
+  var r=await sb.from('credit_log').insert({order_number:gv('cr-o')||null,carrier:gv('cr-c')||null,amount:amount,cat_code:cat||null,cat_label:cat?cat.split('·')[1]&&cat.split('·')[1].trim():null,contact_name:gv('cr-cn')||null,contact_email:gv('cr-em')||null,invoice_period:gv('cr-p')||null,claim_status:gv('cr-st'),notes:gv('cr-n')||null,created_by:user});
+  if(r.error){toast('Save failed: '+r.error.message,'err');return;}
+  toast('Claim saved ✓','ok');clearClaim();
+}
+
+async function loadCredits() {
+  if(!sb)return;
+  var r=await sb.from('credit_log').select('*').order('filed_at',{ascending:false});
+  var data=r.data||[];
+  setText('cnt-cr',data.length);
+  var tb=document.getElementById('crTb'),em=document.getElementById('crE');
+  if(!data.length){tb.innerHTML='';em.style.display='block';setText('crTotal','$0.00 exposure');return;}
+  em.style.display='none';
+  var tot=0;for(var i=0;i<data.length;i++)tot+=(data[i].amount||0);
+  setText('crTotal','$'+fmt(tot)+' exposure');
+  var SC={pending:'ba',approved:'bl',denied:'bm',appealed:'bc',resolved:'bg'};
+  var html='';
+  for(var i=0;i<data.length;i++){
+    var c=data[i];
+    html+='<tr><td style="font-family:var(--mono)">'+(c.order_number||'—')+'</td><td style="color:var(--text3);font-size:10px">'+(c.invoice_period||'—')+'</td><td>'+(c.carrier||'—')+'</td><td>'+(c.cat_code?'<span class="badge bg">'+c.cat_code+'</span>':'—')+'</td><td style="font-family:var(--mono);color:var(--magenta)">$'+(c.amount||0).toFixed(2)+'</td><td style="font-size:10px">'+(c.contact_name||'—')+'</td><td><span class="badge '+(SC[c.claim_status]||'bg')+'">'+c.claim_status+'</span></td><td style="font-size:10px;color:var(--text2);max-width:160px">'+(c.notes||'—')+'</td><td style="color:var(--text3);font-size:10px">'+(c.created_by||'—')+'</td><td><button class="bsm bsm-gray" onclick="cycleS(\''+c.id+'\',\''+c.claim_status+'\')">→</button></td></tr>';
+  }
+  tb.innerHTML=html;
+}
+
+async function cycleS(id,cur){var s=['pending','approved','denied','appealed','resolved'];var next=s[(s.indexOf(cur)+1)%s.length];await sb.from('credit_log').update({claim_status:next,updated_at:new Date().toISOString()}).eq('id',id);toast('Status → '+next,'info');loadCredits();}
+function clearClaim(){var ids=['cr-o','cr-c','cr-a','cr-k','cr-cn','cr-em','cr-p','cr-n'];for(var i=0;i<ids.length;i++){var el=document.getElementById(ids[i]);if(el)el.value='';}document.getElementById('cr-st').value='pending';}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function goTab(n){var tcs=document.querySelectorAll('.tc');for(var i=0;i<tcs.length;i++)tcs[i].classList.remove('active');var tabs=document.querySelectorAll('.tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');}
+function setText(id,val){var el=document.getElementById(id);if(el)el.innerHTML=String(val);}
+function gv(id){return document.getElementById(id)?document.getElementById(id).value:'';}
+function fmt(n){return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"');}
+function prog(lbl,pct){document.getElementById('pw').style.display='block';document.getElementById('pl').textContent=lbl;document.getElementById('pf').style.width=pct+'%';}
+function hideProg(){document.getElementById('pw').style.display='none';document.getElementById('pf').style.width='0%';}
+function toast(msg,type){if(!type)type='info';var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(t._to);t._to=setTimeout(function(){t.classList.remove('show');},3500);}
+
+init();
+</script>
+</body>
+</html>
