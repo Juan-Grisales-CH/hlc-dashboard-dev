@@ -972,9 +972,19 @@ function callAI(dt,carrier,service,amount,order,country,ct,cb){
   if(!aKey){var k=prompt('Enter Anthropic API key (one-time):');if(!k){toast('Key required','err');return;}aKey=k;}
   var def=DT[dt]||DT['OTHER'];
   var p='You are an ops analyst for Craighill, a NYC design brand. Write ONE plain-English sentence explaining this HLC invoice charge and what action to take. Be specific about dollars.\n\nDiscrepancy Type: '+dt+' — '+def.label+'\nAction: '+def.action+'\nCharge Type: '+(ct||'unknown')+'\nCarrier: '+carrier+' | Service: '+(service||'unknown')+' | Amount: $'+amount+' | Order: '+(order||'NULL')+' | Country: '+(country||'US')+'\n\nStart with "This $'+amount+' charge..."';
-  fetch('https://qcpvmyholfiymflrnaav.supabase.co/functions/v1/explain-charge',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({prompt:p,apiKey:aKey})})
-    .then(function(r){return r.json();}).then(function(d){cb(d.text||d.error||'Unable to generate explanation.');})
-    .catch(function(err){console.error(err);cb('<span style="color:var(--text3);font-size:10px">API error — check console</span>');});
+  fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':aKey,
+      'anthropic-version':'2023-06-04',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:p}]})
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){cb((d.content&&d.content[0]&&d.content[0].text)||d.error||'Unable to generate explanation.');})
+  .catch(function(err){console.error(err);cb('<span style="color:var(--text3);font-size:10px">API error — check console</span>');});
 }
 
 // ── CREDITS ───────────────────────────────────────────────────────────────────
