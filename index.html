@@ -482,9 +482,6 @@ async function init(){
     var t=await sb.from('invoice_uploads').select('id').limit(1);
     if(t.error) throw t.error;
     setSt('live','Connected · Supabase');
-    showLoad('Fetching API key...',35);
-    var cfg=await sb.from('app_config').select('value').eq('key','anthropic_api_key').single();
-    if(cfg.data&&cfg.data.value) aKey=cfg.data.value;
     showLoad('Loading history...',55);
     await loadHistory();
     showLoad('Loading charges...',75);
@@ -977,7 +974,7 @@ function callAI(dt,carrier,service,amount,order,country,ct,cb){
     headers:{
       'Content-Type':'application/json',
       'x-api-key':aKey,
-      'anthropic-version':'2023-06-04',
+      'anthropic-version':'2023-06-01',
       'anthropic-dangerous-direct-browser-access':'true'
     },
     body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:p}]})
