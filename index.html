@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HLC · INVOICE INTELLIGENCE v3</title>
+<title>HLC · INVOICE INTELLIGENCE v3.1</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -488,6 +488,11 @@ async function init(){
     await loadAllCharges();
     showLoad('Loading credits...',90);
     await loadCredits();
+    showLoad('Loading AI config...',95);
+    try{
+      var cfg=await sb.from('app_config').select('value').eq('key','anthropic_api_key').single();
+      if(cfg.data&&cfg.data.value)aKey=cfg.data.value;
+    }catch(e2){console.warn('Could not load AI key from config:',e2);}
     showLoad('Ready!',100);
     setTimeout(hideLoad,500);
     sb.channel('cr').on('postgres_changes',{event:'*',schema:'public',table:'credit_log'},function(){loadCredits();}).subscribe();
@@ -966,9 +971,12 @@ function explainC(idx,dt,carrier,service,amount,order,country,ct){
   callAI(dt,carrier,service,amount,order,country,ct,function(text){el.innerHTML='<div class="expl">'+text+'</div>';});
 }
 function callAI(dt,carrier,service,amount,order,country,ct,cb){
-  if(!aKey){var k=prompt('Enter Anthropic API key (one-time):');if(!k){toast('Key required','err');return;}aKey=k;}
+  if(!aKey){
+    cb('<span style="color:var(--amber);font-size:10px">⚠ AI key not configured — contact Juan</span>');
+    return;
+  }
   var def=DT[dt]||DT['OTHER'];
-  var p='You are an ops analyst for Craighill, a NYC design brand. Write ONE plain-English sentence explaining this HLC invoice charge and what action to take. Be specific about dollars.\n\nDiscrepancy Type: '+dt+' — '+def.label+'\nAction: '+def.action+'\nCharge Type: '+(ct||'unknown')+'\nCarrier: '+carrier+' | Service: '+(service||'unknown')+' | Amount: $'+amount+' | Order: '+(order||'NULL')+' | Country: '+(country||'US')+'\n\nStart with "This $'+amount+' charge..."';
+  var p='You are an ops analyst for Craighill, a NYC design brand shipping via HLC (Highline Commerce, Brooklyn 3PL). Write ONE concise plain-English sentence explaining this HLC invoice charge and what specific action to take. Be precise about dollars and carrier.\n\nDiscrepancy Type: '+dt+' — '+def.label+'\nRecommended Action: '+def.action+'\nCharge Type: '+(ct||'unknown')+'\nCarrier: '+carrier+' | Service: '+(service||'unknown')+' | Amount: $'+amount+' | Order: '+(order||'NULL')+' | Ship-To Country: '+(country||'US')+'\n\nStart with "This $'+amount+' charge..."';
   fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
     headers:{
@@ -977,7 +985,7 @@ function callAI(dt,carrier,service,amount,order,country,ct,cb){
       'anthropic-version':'2023-06-01',
       'anthropic-dangerous-direct-browser-access':'true'
     },
-    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,messages:[{role:'user',content:p}]})
+    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:200,messages:[{role:'user',content:p}]})
   })
   .then(function(r){return r.json();})
   .then(function(d){cb((d.content&&d.content[0]&&d.content[0].text)||d.error||'Unable to generate explanation.');})
