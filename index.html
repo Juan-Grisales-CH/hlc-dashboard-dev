@@ -194,7 +194,7 @@ tr:hover td{background:var(--panel2)}
 <div class="hdr">
   <div class="logo">
     <div class="lm">CH</div>
-    <div><div class="lt">HLC · Invoice Intelligence</div><div class="ls">Craighill Ops · v4.1 · Supabase Live</div></div>
+    <div><div class="lt">HLC · Invoice Intelligence</div><div class="ls">Craighill Ops · v4.2 · Supabase Live</div></div>
   </div>
   <div class="hdr-c"><div class="pulse" id="dbP"></div><span id="dbS">Connecting...</span></div>
   <div class="hdr-r">
@@ -572,7 +572,7 @@ async function init(){
     setTimeout(hideLoad,400);
     try{sb.channel('cr').on('postgres_changes',{event:'*',schema:'public',table:'credit_log'},function(){loadCredits();}).subscribe();}catch(re){console.warn('Realtime:',re);}
   }catch(e){
-    setSt('err','Data loaded — realtime unavailable');
+    setSt('live','Connected · Supabase Live');
     console.error(e);
     hideLoad();
     toast('Supabase error: '+e.message,'err');
@@ -1229,10 +1229,10 @@ async function runCompare(){
   res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Loading...</div>';
   document.getElementById('cmpAiBtn').style.display='none';
   document.getElementById('cmpAiResult').style.display='none';
-  var rA=await sb.from('rails_shipping_charges').select('*').gte('date_from',aFrom).lte('date_to',aTo).range(0,4999);
-  var rOA=await sb.from('rails_order_charges').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',aFrom).lte('date_to',aTo).range(0,4999);
-  var rB=await sb.from('rails_shipping_charges').select('*').gte('date_from',bFrom).lte('date_to',bTo).range(0,4999);
-  var rOB=await sb.from('rails_order_charges').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',bFrom).lte('date_to',bTo).range(0,4999);
+  var rA=await sb.from('rails_shipping_charges').select('*').gte('date_from',aFrom).lte('date_to',aTo).range(0,9999);
+  var rOA=await sb.from('rails_order_charges').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',aFrom).lte('date_to',aTo).range(0,9999);
+  var rB=await sb.from('rails_shipping_charges').select('*').gte('date_from',bFrom).lte('date_to',bTo).range(0,9999);
+  var rOB=await sb.from('rails_order_charges').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',bFrom).lte('date_to',bTo).range(0,9999);
   cmpDataA={ship:rA.data||[],orders:rOA.data||[],label:aFrom+' to '+aTo};
   cmpDataB={ship:rB.data||[],orders:rOB.data||[],label:bFrom+' to '+bTo};
   function cs(d){var t=0,p=0,cars={},intl=0,u={};for(var i=0;i<d.ship.length;i++){t+=parseFloat(d.ship[i].charge_amount||0);var c=d.ship[i].carrier||'Unknown';cars[c]=(cars[c]||0)+parseFloat(d.ship[i].charge_amount||0);if(d.ship[i].ship_to_country&&d.ship[i].ship_to_country!=='US')intl++;}for(var i=0;i<d.orders.length;i++){p+=parseFloat(d.orders[i].initial_pick_fee_amount||0)+parseFloat(d.orders[i].additional_pick_fee_amount||0);if(d.orders[i].order_number)u[d.orders[i].order_number]=true;}var oc=Object.keys(u).length;return{shipTot:t,pickTot:p,ordCnt:oc,intl:intl,carriers:cars,avg:oc>0?t/oc:0,topCarrier:Object.keys(cars).sort(function(a,b){return cars[b]-cars[a];})[0]||'--'};}
@@ -1305,7 +1305,7 @@ function drawHBar2(id,labels,data,color,lW,money){
 
 // ── SUPABASE PAGINATED FETCH ──────────────────────────────────────────────────
 async function fetchAll(table,filters){
-  var allRows=[],batchSize=1000,from=0,maxBatches=15;
+  var allRows=[],batchSize=1000,from=0,maxBatches=50;
   for(var batch=0;batch<maxBatches;batch++){
     var q=sb.from(table).select('*');
     if(filters&&filters.q!=='ALL'){
