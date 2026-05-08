@@ -837,18 +837,21 @@ function renderShipPage(){
       '<td style="font-family:var(--mono);font-size:10px">'+(c.package_weight?c.package_weight+' '+(c.package_weight_unit||'lb'):'—')+'</td>'+
       '<td style="font-family:var(--mono);color:'+(isOutlier?'var(--amber)':'var(--lime)')+'">$'+fmt(amt)+(isOutlier?' ⚠':'')+'</td>'+
       '<td style="color:var(--text3);font-size:10px">'+(c.ship_date||'—')+'</td>'+
-      '<td><button class="bsm bsm-lime" onclick="explainShipRow(\''+rid+'\',this,'+JSON.stringify({order:c.order_number||'',carrier:c.carrier||'',svc:c.service_level||'',amt:amt,country:c.ship_to_country||'US',pkg:c.package_name||''}).replace(/'/g,"&#39;")+')" style="font-size:9px;padding:2px 7px">✦</button></td>'+
+      '<td><button class="bsm bsm-lime" onclick="explainShipRowById(\'\'+rid+\'\')" style="font-size:9px;padding:2px 7px">&#10022;</button></td>\'+'
       '</tr>'+
       '<tr id="erow-'+rid+'" style="display:none"><td colspan="10" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+rid+'" class="ai-explain-text"></div></td></tr>';
   }
   tb.innerHTML=html;
   renderPager('ship-pager',shipFilt.length,shipPage,function(p){shipPage=p;renderShipPage();});
 }
-async function explainShipRow(rid,btn,info){
+async function explainShipRowById(rid){
   var erow=document.getElementById('erow-'+rid),el=document.getElementById(rid);
+  if(!erow||!el)return;
   if(erow.style.display!=='none'&&el.textContent){erow.style.display='none';return;}
   erow.style.display='';el.className='ai-explain-text loading';el.textContent='Analyzing...';
-  var prompt='You are an ops analyst for Craighill (NYC design brand, ships via HLC Brooklyn 3PL). In ONE sentence explain this shipping charge and whether it looks normal or needs investigation.\n\nCarrier: '+info.carrier+' | Service: '+info.svc+' | Package: '+info.pkg+' | Destination: '+info.country+' | Amount: $'+fmt(info.amt)+' | Order: '+(info.order||'unknown')+'\nOutlier threshold: $'+OUTLIER_SHIP_THRESHOLD+'\n\nStart with "This $'+fmt(info.amt)+' charge..."';
+  var info=(window._shipRows&&window._shipRows[rid])||{};
+  var amt=info.amt||0;
+  var prompt='You are an ops analyst for Craighill (NYC design brand, ships via HLC Brooklyn 3PL). In ONE sentence explain this shipping charge and whether it looks normal or needs investigation.\n\nCarrier: '+(info.carrier||'?')+' | Service: '+(info.svc||'?')+' | Package: '+(info.pkg||'?')+' | Destination: '+(info.country||'US')+' | Amount: $'+fmt(amt)+' | Order: '+(info.order||'unknown')+'\nOutlier threshold: $'+OUTLIER_SHIP_THRESHOLD+'\n\nStart with "This $'+fmt(amt)+' charge..."';
   var text=await callAI(prompt,null);
   el.className='ai-explain-text';el.textContent=text;
 }
