@@ -972,8 +972,8 @@ function detectCredits(){
       '<div id="'+rid+'" class="ai-explain-text" style="margin-top:6px"></div>'+
       '</div>'+
       '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'+
-      '<button class="bsm bsm-lime" onclick="prefillCredById(''+rid+'')">+ Log Claim</button>'+
-      '<button class="bsm bsm-amber" onclick="explainCredById(''+rid+'')">&#10022; AI</button>'+
+      '<button class="bsm bsm-lime" data-rid="'+rid+'" onclick="prefillCredById(this.dataset.rid)">+ Log Claim</button>'+
+      '<button class="bsm bsm-amber" data-rid="'+rid+'" onclick="explainCredById(this.dataset.rid)">&#10022; AI</button>'+
       '</div></div>';
   }
   list.innerHTML=html;
