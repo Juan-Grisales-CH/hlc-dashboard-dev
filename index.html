@@ -587,18 +587,25 @@ function setSt(s,m){
 }
 
 async function loadAll(){
-  await Promise.all([loadShipping(),loadOrders(),loadInvoice(),loadCredits()]);
+  // Reset AI panel immediately
+  document.getElementById('aiEmpty').style.display='block';
+  document.getElementById('aiNarrative').style.display='none';
+  document.getElementById('aiNarrative').textContent='';
+  setText('periodStatus','Loading shipping...');
+  await loadShipping();
+  setText('periodStatus','Loading orders...');
+  await loadOrders();
+  setText('periodStatus','Loading invoice charges...');
+  await loadInvoice();
+  setText('periodStatus','Loading credits...');
+  await loadCredits();
+  setText('periodStatus','Rendering...');
   renderOverview();
   applyShipFlt();
   applyOrdFlt();
   renderInvoice();
   detectCredits();
   runOutlierCheck();
-  setTimeout(function(){applyShipFlt();applyOrdFlt();renderInvoice();},200);
-  // Reset AI panel
-  document.getElementById('aiEmpty').style.display='block';
-  document.getElementById('aiNarrative').style.display='none';
-  document.getElementById('aiNarrative').textContent='';
 }
 
 // ── PERIOD ────────────────────────────────────────────────────────────────────
@@ -1158,25 +1165,19 @@ function drawHBar2(id,labels,data,color,lW,money){
   }
 }
 
-// ── SUPABASE ROW LIMIT FIX — paginate to get all rows ─────────────────────────
+// ── SUPABASE DATA LOADER — single large request per table ────────────────────
+// Supabase default limit is 1000; we override with a high range.
+// For order charges (40k+ rows) we load only what the period needs.
 async function fetchAll(table, filters){
-  var allRows=[];
-  var pageSize=1000;
-  var from=0;
-  while(true){
-    var q=sb.from(table).select('*').range(from,from+pageSize-1);
-    if(filters){
-      if(filters.gte_from&&filters.q!=='ALL') q=q.gte('date_from',filters.gte_from);
-      if(filters.lte_to&&filters.q!=='ALL') q=q.lte('date_to',filters.lte_to);
-    }
-    var r=await q;
-    if(r.error){console.error('fetchAll error on '+table,r.error);break;}
-    if(!r.data||r.data.length===0)break;
-    allRows=allRows.concat(r.data);
-    if(r.data.length<pageSize)break;
-    from+=pageSize;
+  var q=sb.from(table).select('*');
+  if(filters&&filters.q!=='ALL'){
+    q=q.gte('date_from',filters.gte_from).lte('date_to',filters.lte_to);
   }
-  return allRows;
+  // Use range to request up to 10,000 rows per period — enough for any single quarter
+  q=q.range(0,9999);
+  var r=await q;
+  if(r.error){console.error('fetchAll error on '+table,r.error);return[];}
+  return r.data||[];
 }
 
 </script>
