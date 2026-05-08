@@ -608,6 +608,7 @@ async function loadAll(){
     renderInvoice();
     detectCredits();
     runOutlierCheck();
+    renderCredits();
     // Update period status with final counts
     setText('periodStatus','<span>'+periodLabel()+'</span> &middot; '+shipData.length+' ship &middot; '+ordData.length+' orders &middot; '+invData.length+' inv');
   },50);
@@ -1117,7 +1118,7 @@ async function cycleStatus(id,cur){
 }
 function clearClaim(){['cr-o','cr-c','cr-a','cr-cn','cr-em','cr-p','cr-n','cr-lid'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});document.getElementById('cr-st').value='pending';}
 
-function goTab(n){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');if(n==='credits'){setTimeout(function(){detectCredits();renderCredits();},100);}}
+function goTab(n){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');if(n==='credits'){if(!invData.length){loadInvoice().then(function(){detectCredits();renderCredits();});}else{setTimeout(function(){detectCredits();renderCredits();},100);}}}
 function setText(id,val){var el=document.getElementById(id);if(el)el.innerHTML=String(val);}
 function gv(id){return document.getElementById(id)?document.getElementById(id).value:'';}
 function fmt(n){return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -1300,7 +1301,7 @@ function drawHBar2(id,labels,data,color,lW,money){
 
 // ── SUPABASE PAGINATED FETCH ──────────────────────────────────────────────────
 async function fetchAll(table,filters){
-  var allRows=[],batchSize=1000,from=0,maxBatches=15;
+  var allRows=[],batchSize=1000,from=0,maxBatches=50;
   for(var batch=0;batch<maxBatches;batch++){
     var q=sb.from(table).select('*');
     if(filters&&filters.q!=='ALL'){
