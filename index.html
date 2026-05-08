@@ -194,7 +194,7 @@ tr:hover td{background:var(--panel2)}
 <div class="hdr">
   <div class="logo">
     <div class="lm">CH</div>
-    <div><div class="lt">HLC · Invoice Intelligence</div><div class="ls">Craighill Ops · v4.2 · Supabase Live</div></div>
+    <div><div class="lt">HLC · Invoice Intelligence</div><div class="ls">Craighill Ops · v4.1 · Supabase Live</div></div>
   </div>
   <div class="hdr-c"><div class="pulse" id="dbP"></div><span id="dbS">Connecting...</span></div>
   <div class="hdr-r">
@@ -572,7 +572,7 @@ async function init(){
     setTimeout(hideLoad,400);
     try{sb.channel('cr').on('postgres_changes',{event:'*',schema:'public',table:'credit_log'},function(){loadCredits();}).subscribe();}catch(re){console.warn('Realtime:',re);}
   }catch(e){
-    setSt('live','Connected · Supabase Live');
+    setSt('err','Data loaded — realtime unavailable');
     console.error(e);
     hideLoad();
     toast('Supabase error: '+e.message,'err');
@@ -827,19 +827,9 @@ function renderShipPage(){
   for(var i=0;i<page.length;i++){
     var c=page[i],amt=parseFloat(c.charge_amount||0),isOutlier=amt>OUTLIER_SHIP_THRESHOLD,isIntl=c.ship_to_country&&c.ship_to_country!=='US';
     var rid='sr'+( start+i);
-    html+='<tr'+(isOutlier?' style="background:rgba(255,170,0,.04)"':'')+'>'+
-      '<td style="font-family:var(--mono);color:var(--text)">'+(c.order_number||'<span style="color:var(--text3)">—</span>')+'</td>'+
-      '<td>'+( c.carrier||'—')+'</td>'+
-      '<td style="font-size:10px;color:var(--text3)">'+(c.service_level||'—')+'</td>'+
-      '<td><span class="badge '+(isIntl?'bc':'bg')+'">'+(c.ship_to_country||'US')+'</span></td>'+
-      '<td style="color:var(--text3)">'+(c.ship_to_state||'—')+'</td>'+
-      '<td style="font-size:10px;color:var(--text2)">'+(c.package_name||'—')+'</td>'+
-      '<td style="font-family:var(--mono);font-size:10px">'+(c.package_weight?c.package_weight+' '+(c.package_weight_unit||'lb'):'—')+'</td>'+
-      '<td style="font-family:var(--mono);color:'+(isOutlier?'var(--amber)':'var(--lime)')+'">$'+fmt(amt)+(isOutlier?' ⚠':'')+'</td>'+
-      '<td style="color:var(--text3);font-size:10px">'+(c.ship_date||'—')+'</td>'+
-      '<td><button class="bsm bsm-lime" onclick="explainShipRowById(\'\'+rid+\'\')" style="font-size:9px;padding:2px 7px">&#10022;</button></td>\'+'
-      '</tr>'+
-      '<tr id="erow-'+rid+'" style="display:none"><td colspan="10" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+rid+'" class="ai-explain-text"></div></td></tr>';
+    window._shipRows=window._shipRows||{};
+    window._shipRows[rid]={order:c.order_number||'',carrier:c.carrier||'',svc:c.service_level||'',amt:amt,country:c.ship_to_country||'US',pkg:c.package_name||''};
+    html+='<tr'+(isOutlier?' style="background:rgba(255,170,0,.04)"':'')+' id="row-'+rid+'">'+'<td style="font-family:var(--mono);color:var(--text)">'+(c.order_number||'<span style="color:var(--text3)">—</span>')+'</td>'+'<td>'+(c.carrier||'—')+'</td>'+'<td style="font-size:10px;color:var(--text3)">'+(c.service_level||'—')+'</td>'+'<td><span class="badge '+(isIntl?'bc':'bg')+'">'+(c.ship_to_country||'US')+'</span></td>'+'<td style="color:var(--text3)">'+(c.ship_to_state||'—')+'</td>'+'<td style="font-size:10px;color:var(--text2)">'+(c.package_name||'—')+'</td>'+'<td style="font-family:var(--mono);font-size:10px">'+(c.package_weight?c.package_weight+' '+(c.package_weight_unit||'lb'):'—')+'</td>'+'<td style="font-family:var(--mono);color:'+(isOutlier?'var(--amber)':'var(--lime)')+'">$'+fmt(amt)+(isOutlier?' ⚠':'')+'</td>'+'<td style="color:var(--text3);font-size:10px">'+(c.ship_date||'—')+'</td>'+'<td><button class="bsm bsm-lime" onclick="explainShipRowById('+"'"+rid+"'"+')" style="font-size:9px;padding:2px 7px">&#10022;</button></td>'+'</tr>'+'<tr id="erow-'+rid+'" style="display:none"><td colspan="10" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+rid+'" class="ai-explain-text"></div></td></tr>';
   }
   tb.innerHTML=html;
   renderPager('ship-pager',shipFilt.length,shipPage,function(p){shipPage=p;renderShipPage();});
@@ -896,9 +886,12 @@ function renderOrdPage(){
   if(!ordFilt.length){tb.innerHTML='';em.style.display='block';renderPager('ord-pager',0,ordPage,function(p){ordPage=p;renderOrdPage();});return;}
   em.style.display='none';
   var html='';
+  window._ordRows=window._ordRows||{};
   for(var i=0;i<page.length;i++){
     var c=page[i];
     var iP=parseFloat(c.initial_pick_fee_amount||0),aP=parseFloat(c.additional_pick_fee_amount||0);
+    var orid='or'+(start+i);
+    window._ordRows[orid]={order:c.order_number||'',carrier:c.carrier||'',pkg:c.package_type||'',ip:iP,ap:aP,city:(c.recipient_city||'')+(c.recipient_state?','+c.recipient_state:''),country:c.recipient_country||'US'};
     var aQ=parseFloat(c.additional_pick_fee_qty||0),isHighPick=aQ>OUTLIER_PICK_THRESHOLD;
     var dims=c.package_length?c.package_length+'×'+c.package_width+'×'+c.package_height:'—';
     html+='<tr'+(isHighPick?' style="background:rgba(255,170,0,.04)"':'')+'>'+
@@ -912,7 +905,9 @@ function renderOrdPage(){
       '<td style="font-family:var(--mono);color:'+(aP>0?'var(--amber)':'var(--text3)')+'">$'+fmt(aP)+(isHighPick?' ⚠':'')+'</td>'+
       '<td style="font-size:10px;color:var(--text3)">'+(c.recipient_city||'')+(c.recipient_state?', '+c.recipient_state:'')+'</td>'+
       '<td style="color:var(--text3);font-size:10px">'+(c.ship_datetime?c.ship_datetime.slice(0,10):'—')+'</td>'+
-      '</tr>';
+      '<td><button class="bsm bsm-lime" onclick="explainOrdRowById(\''+orid+'\')" style="font-size:9px;padding:2px 7px">&#10022;</button></td>'+
+      '</tr>'+
+      '<tr id="erow-'+orid+'" style="display:none"><td colspan="11" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+orid+'" class="ai-explain-text"></div></td></tr>';
   }
   tb.innerHTML=html;
   renderPager('ord-pager',ordFilt.length,ordPage,function(p){ordPage=p;renderOrdPage();});
@@ -1122,7 +1117,7 @@ async function cycleStatus(id,cur){
 }
 function clearClaim(){['cr-o','cr-c','cr-a','cr-cn','cr-em','cr-p','cr-n','cr-lid'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});document.getElementById('cr-st').value='pending';}
 
-function goTab(n){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');}
+function goTab(n){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');if(n==='credits'){setTimeout(function(){detectCredits();renderCredits();},100);}}
 function setText(id,val){var el=document.getElementById(id);if(el)el.innerHTML=String(val);}
 function gv(id){return document.getElementById(id)?document.getElementById(id).value:'';}
 function fmt(n){return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -1229,10 +1224,10 @@ async function runCompare(){
   res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Loading...</div>';
   document.getElementById('cmpAiBtn').style.display='none';
   document.getElementById('cmpAiResult').style.display='none';
-  var rA=await sb.from('rails_shipping_charges').select('*').gte('date_from',aFrom).lte('date_to',aTo).range(0,9999);
-  var rOA=await sb.from('rails_order_charges').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',aFrom).lte('date_to',aTo).range(0,9999);
-  var rB=await sb.from('rails_shipping_charges').select('*').gte('date_from',bFrom).lte('date_to',bTo).range(0,9999);
-  var rOB=await sb.from('rails_order_charges').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',bFrom).lte('date_to',bTo).range(0,9999);
+  var rA=await sb.from('rails_shipping_charges').select('*').gte('date_from',aFrom).lte('date_to',aTo).range(0,4999);
+  var rOA=await sb.from('rails_order_charges').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',aFrom).lte('date_to',aTo).range(0,4999);
+  var rB=await sb.from('rails_shipping_charges').select('*').gte('date_from',bFrom).lte('date_to',bTo).range(0,4999);
+  var rOB=await sb.from('rails_order_charges').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',bFrom).lte('date_to',bTo).range(0,4999);
   cmpDataA={ship:rA.data||[],orders:rOA.data||[],label:aFrom+' to '+aTo};
   cmpDataB={ship:rB.data||[],orders:rOB.data||[],label:bFrom+' to '+bTo};
   function cs(d){var t=0,p=0,cars={},intl=0,u={};for(var i=0;i<d.ship.length;i++){t+=parseFloat(d.ship[i].charge_amount||0);var c=d.ship[i].carrier||'Unknown';cars[c]=(cars[c]||0)+parseFloat(d.ship[i].charge_amount||0);if(d.ship[i].ship_to_country&&d.ship[i].ship_to_country!=='US')intl++;}for(var i=0;i<d.orders.length;i++){p+=parseFloat(d.orders[i].initial_pick_fee_amount||0)+parseFloat(d.orders[i].additional_pick_fee_amount||0);if(d.orders[i].order_number)u[d.orders[i].order_number]=true;}var oc=Object.keys(u).length;return{shipTot:t,pickTot:p,ordCnt:oc,intl:intl,carriers:cars,avg:oc>0?t/oc:0,topCarrier:Object.keys(cars).sort(function(a,b){return cars[b]-cars[a];})[0]||'--'};}
@@ -1305,7 +1300,7 @@ function drawHBar2(id,labels,data,color,lW,money){
 
 // ── SUPABASE PAGINATED FETCH ──────────────────────────────────────────────────
 async function fetchAll(table,filters){
-  var allRows=[],batchSize=1000,from=0,maxBatches=50;
+  var allRows=[],batchSize=1000,from=0,maxBatches=15;
   for(var batch=0;batch<maxBatches;batch++){
     var q=sb.from(table).select('*');
     if(filters&&filters.q!=='ALL'){
@@ -1323,6 +1318,17 @@ async function fetchAll(table,filters){
   return allRows;
 }
 
+
+async function explainOrdRowById(rid){
+  var erow=document.getElementById('erow-'+rid),el=document.getElementById(rid);
+  if(!erow||!el)return;
+  if(erow.style.display!=='none'&&el.textContent){erow.style.display='none';return;}
+  erow.style.display='';el.className='ai-explain-text loading';el.textContent='Analyzing...';
+  var info=(window._ordRows&&window._ordRows[rid])||{};
+  var prompt='You are an ops analyst for Craighill (NYC design brand, ships via HLC Brooklyn 3PL). In ONE sentence explain these pick/pack fees and whether they look normal.\n\nOrder: '+(info.order||'?')+' | Carrier: '+(info.carrier||'?')+' | Package: '+(info.pkg||'?')+' | Destination: '+info.city+' ('+info.country+') | Initial pick: $'+fmt(info.ip||0)+' | Add\'l pick: $'+fmt(info.ap||0)+'\nOutlier threshold: '+OUTLIER_PICK_THRESHOLD+' additional picks\n\nStart with \"These fees..."';
+  var text=await callAI(prompt,null);
+  el.className='ai-explain-text';el.textContent=text;
+}
 
 init();
 </script>
