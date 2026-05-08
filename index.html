@@ -601,17 +601,22 @@ async function loadAll(){
   await loadCredits();
   setText('periodStatus','Rendering...');
   renderOverview();
-  applyShipFlt();
-  applyOrdFlt();
-  renderInvoice();
-  detectCredits();
-  runOutlierCheck();
+  // Force table renders with slight delay to ensure DOM is ready
+  setTimeout(function(){
+    applyShipFlt();
+    applyOrdFlt();
+    renderInvoice();
+    detectCredits();
+    runOutlierCheck();
+    // Update period status with final counts
+    setText('periodStatus','<span>'+periodLabel()+'</span> &middot; '+shipData.length+' ship &middot; '+ordData.length+' orders &middot; '+invData.length+' inv');
+  },50);
 }
 
 // ── PERIOD ────────────────────────────────────────────────────────────────────
 function setQ(q){
   activePeriod={type:'Q',q:q,from:QUARTERS[q].from,to:QUARTERS[q].to};
-  setText('periodStatus','Loading '+q+'...');
+  setText('periodStatus','Loading '+(q==='ALL'?'All Time (capped at 15k rows/table)':q)+'...');
   loadAll();
 }
 
@@ -1193,4 +1198,142 @@ async function fetchAll(table, filters){
 
 </script>
 </body>
-</html>
+</html
+// ── DRAW OVERVIEW CHARTS ──────────────────────────────────────────────────────
+function drawOverviewCharts(){
+  var COLS=['#b8ff3c','#00e5ff','#ff2d9b','#ffaa00','#7c3aed','#ff6b35','#50d0a0'];
+  var cv=document.getElementById('donutCv');
+  if(cv&&shipData.length){
+    var W=140,R=55,ri=35,ctx=setupCanvas(cv,W,W);
+    var cars={};for(var i=0;i<shipData.length;i++){var n=shipData[i].carrier||'Unknown';cars[n]=(cars[n]||0)+parseFloat(shipData[i].charge_amount||0);}
+    var sorted=[];for(var n in cars)sorted.push([n,cars[n]]);sorted.sort(function(a,b){return b[1]-a[1];});
+    var tot=0;for(var i=0;i<sorted.length;i++)tot+=sorted[i][1];
+    if(tot>0){var cx=W/2,cy=W/2,angle=-Math.PI/2;for(var i=0;i<sorted.length;i++){var sl=(sorted[i][1]/tot)*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,angle,angle+sl);ctx.closePath();ctx.fillStyle=COLS[i%COLS.length];ctx.fill();angle+=sl;}ctx.beginPath();ctx.arc(cx,cy,ri,0,Math.PI*2);ctx.fillStyle='#060608';ctx.fill();ctx.fillStyle='#b8ff3c';ctx.font='bold 10px Rajdhani,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('$'+fmtK(tot),cx,cy);}
+    var legHtml='';for(var i=0;i<Math.min(sorted.length,6);i++)legHtml+='<div class="li"><div class="ld" style="background:'+COLS[i%COLS.length]+'"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">'+sorted[i][0]+'</span><span style="font-family:var(--mono);font-size:10px;color:var(--text3)">$'+fmtK(sorted[i][1])+'</span></div>';
+    var leg=document.getElementById('donutLeg');if(leg)leg.innerHTML=legHtml;
+  }
+  var states={};for(var i=0;i<shipData.length;i++){var s=shipData[i].ship_to_state||'--';states[s]=(states[s]||0)+parseFloat(shipData[i].charge_amount||0);}
+  var ss=[];for(var n in states)ss.push([n,states[n]]);ss.sort(function(a,b){return b[1]-a[1];});ss=ss.slice(0,10);
+  if(ss.length)drawHBar2('stateCv',ss.map(function(x){return x[0];}),ss.map(function(x){return x[1];}),COLS[0],35,true);
+  var svcs={};for(var i=0;i<shipData.length;i++){var s=shipData[i].service_level||'Unknown';svcs[s]=(svcs[s]||0)+parseFloat(shipData[i].charge_amount||0);}
+  var sv=[];for(var n in svcs)sv.push([n,svcs[n]]);sv.sort(function(a,b){return b[1]-a[1];});sv=sv.slice(0,6);
+  if(sv.length)drawHBar2('svcCv',sv.map(function(x){return x[0];}),sv.map(function(x){return x[1];}),COLS[1],120,true);
+  var pkgs={};for(var i=0;i<ordData.length;i++){var p=ordData[i].package_type||'Unknown';pkgs[p]=(pkgs[p]||0)+1;}
+  var pk=[];for(var n in pkgs)pk.push([n,pkgs[n]]);pk.sort(function(a,b){return b[1]-a[1];});pk=pk.slice(0,6);
+  if(pk.length)drawHBar2('pkgCv',pk.map(function(x){return x[0];}),pk.map(function(x){return x[1];}),COLS[2],120,false);
+}
+
+// ── PAGER ─────────────────────────────────────────────────────────────────────
+function renderPager(id,total,cur,onPage){
+  var pages=Math.ceil(total/PAGE)||1,p=document.getElementById(id);
+  if(!p)return;
+  if(pages<=1){p.innerHTML='';return;}
+  var h='';
+  if(cur>1)h+='<button onclick="('+onPage.toString()+')('+(cur-1)+')">&#8592;</button>';
+  var s=Math.max(1,cur-2),e=Math.min(pages,cur+2);
+  for(var i=s;i<=e;i++)h+='<button class="'+(i===cur?'cur':'')+'" onclick="('+onPage.toString()+')('+i+')">'+i+'</button>';
+  if(cur<pages)h+='<button onclick="('+onPage.toString()+')('+(cur+1)+')">&#8594;</button>';
+  p.innerHTML=h;
+}
+
+// ── EXPORTS ───────────────────────────────────────────────────────────────────
+function exportShip(){
+  if(!shipFilt.length){toast('No data','warn');return;}
+  var cols=['order_number','tracking_number','carrier','service_level','ship_date','ship_to_city','ship_to_state','ship_to_country','package_name','package_weight','charge_amount'];
+  var rows=[cols.join(',')];
+  shipFilt.forEach(function(c){rows.push(cols.map(function(k){var v=c[k]===null||c[k]===undefined?'':c[k];return '"'+String(v).replace(/"/g,'""')+'"';}).join(','));});
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download='shipping_'+periodLabel().replace(/[^a-z0-9]/gi,'_')+'.csv';a.click();
+  toast('Exported '+shipFilt.length+' rows','ok');
+}
+function exportOrders(){
+  if(!ordFilt.length){toast('No data','warn');return;}
+  var cols=['order_number','carrier','service_level','package_type','weight_value','weight_unit','initial_pick_fee_amount','additional_pick_fee_amount','recipient_city','recipient_state','recipient_country'];
+  var rows=[cols.join(',')];
+  ordFilt.forEach(function(c){rows.push(cols.map(function(k){var v=c[k]===null||c[k]===undefined?'':c[k];return '"'+String(v).replace(/"/g,'""')+'"';}).join(','));});
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download='orders_'+periodLabel().replace(/[^a-z0-9]/gi,'_')+'.csv';a.click();
+  toast('Exported '+ordFilt.length+' rows','ok');
+}
+
+// ── HIGHLIGHT ─────────────────────────────────────────────────────────────────
+function highlight(text,q){
+  if(!q||!text)return text||'';
+  var re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  return String(text).replace(re,'<span class="hl">$1</span>');
+}
+
+// ── SEARCH ────────────────────────────────────────────────────────────────────
+async function runSearch(){
+  var q=(document.getElementById('srch-q').value||'').trim().toLowerCase();
+  if(!q){toast('Enter a search term','warn');return;}
+  var res=document.getElementById('srchResults');
+  res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Searching...</div>';
+  var results=[];
+  shipData.forEach(function(c){if(((c.order_number||'')+(c.tracking_number||'')+(c.ship_to_city||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Shipping',srcBadge:'bl',order:c.order_number,detail:(c.carrier||'')+' -> '+(c.ship_to_city||'')+(c.ship_to_country?', '+c.ship_to_country:''),amount:c.charge_amount,date:c.ship_date});});
+  ordData.forEach(function(c){if(((c.order_number||'')+(c.recipient_city||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Order',srcBadge:'bc',order:c.order_number,detail:(c.package_type||'')+' - '+(c.carrier||'')+' -> '+(c.recipient_city||''),amount:(parseFloat(c.initial_pick_fee_amount||0)+parseFloat(c.additional_pick_fee_amount||0)),date:c.ship_datetime?c.ship_datetime.slice(0,10):''});});
+  invData.forEach(function(c){if(((c.description||'')+(c.charge_on_invoice||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Invoice',srcBadge:parseFloat(c.amount||0)<0?'bt':'ba',order:null,detail:(c.charge_on_invoice||'')+': '+(c.description||''),amount:c.amount,date:c.date_from});});
+  creditData.forEach(function(c){if(((c.order_number||'')+(c.notes||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Credit',srcBadge:'bm',order:c.order_number,detail:(c.carrier||'')+' - '+c.claim_status,amount:c.amount,date:c.invoice_period});});
+  if(!results.length){res.innerHTML='<div class="empty"><div class="empty-i">&#9672;</div><div class="empty-t">No results for "'+q+'"</div></div>';return;}
+  var html='<div style="font-size:10px;color:var(--text3);margin-bottom:10px">'+results.length+' results for "<span style="color:var(--lime)">'+q+'</span>"</div>';
+  html+='<div class="tw"><table><thead><tr><th>Source</th><th>Order #</th><th>Detail</th><th>Amount</th><th>Date</th></tr></thead><tbody>';
+  results.slice(0,200).forEach(function(r){html+='<tr><td><span class="badge '+r.srcBadge+'">'+r.src+'</span></td><td style="font-family:var(--mono);color:var(--text)">'+(r.order||'--')+'</td><td style="font-size:10px;color:var(--text2)">'+(r.detail||'')+'</td><td style="font-family:var(--mono);color:var(--lime)">$'+fmt(Math.abs(parseFloat(r.amount||0)))+'</td><td style="color:var(--text3);font-size:10px">'+(r.date||'--')+'</td></tr>';});
+  html+='</tbody></table></div>';
+  res.innerHTML=html;
+}
+
+// ── COMPARE ───────────────────────────────────────────────────────────────────
+function setCmpQ(side){
+  var q=document.getElementById('cmp-'+side+'-q').value;
+  if(!q||!QUARTERS[q])return;
+  document.getElementById('cmp-'+side+'-from').value=QUARTERS[q].from;
+  document.getElementById('cmp-'+side+'-to').value=QUARTERS[q].to;
+}
+
+async function runCompare(){
+  var aFrom=document.getElementById('cmp-a-from').value,aTo=document.getElementById('cmp-a-to').value;
+  var bFrom=document.getElementById('cmp-b-from').value,bTo=document.getElementById('cmp-b-to').value;
+  if(!aFrom||!aTo||!bFrom||!bTo){toast('Set both date ranges','warn');return;}
+  var res=document.getElementById('cmpResults');
+  res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Loading...</div>';
+  document.getElementById('cmpAiBtn').style.display='none';
+  document.getElementById('cmpAiResult').style.display='none';
+  var rA=await sb.from('rails_shipping_charges').select('*').gte('date_from',aFrom).lte('date_to',aTo).range(0,4999);
+  var rOA=await sb.from('rails_order_charges').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',aFrom).lte('date_to',aTo).range(0,4999);
+  var rB=await sb.from('rails_shipping_charges').select('*').gte('date_from',bFrom).lte('date_to',bTo).range(0,4999);
+  var rOB=await sb.from('rails_order_charges').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',bFrom).lte('date_to',bTo).range(0,4999);
+  cmpDataA={ship:rA.data||[],orders:rOA.data||[],label:aFrom+' to '+aTo};
+  cmpDataB={ship:rB.data||[],orders:rOB.data||[],label:bFrom+' to '+bTo};
+  function cs(d){var t=0,p=0,cars={},intl=0,u={};for(var i=0;i<d.ship.length;i++){t+=parseFloat(d.ship[i].charge_amount||0);var c=d.ship[i].carrier||'Unknown';cars[c]=(cars[c]||0)+parseFloat(d.ship[i].charge_amount||0);if(d.ship[i].ship_to_country&&d.ship[i].ship_to_country!=='US')intl++;}for(var i=0;i<d.orders.length;i++){p+=parseFloat(d.orders[i].initial_pick_fee_amount||0)+parseFloat(d.orders[i].additional_pick_fee_amount||0);if(d.orders[i].order_number)u[d.orders[i].order_number]=true;}var oc=Object.keys(u).length;return{shipTot:t,pickTot:p,ordCnt:oc,intl:intl,carriers:cars,avg:oc>0?t/oc:0,topCarrier:Object.keys(cars).sort(function(a,b){return cars[b]-cars[a];})[0]||'--'};}
+  var sA=cs(cmpDataA),sB=cs(cmpDataB);
+  var COLS=['#b8ff3c','#00e5ff'];
+  var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">';
+  [{s:sA,d:cmpDataA},{s:sB,d:cmpDataB}].forEach(function(item,idx){
+    var s=item.s,col=COLS[idx];
+    html+='<div class="cpanel" style="border-top:2px solid '+col+'"><div class="ph"><div class="pt2" style="color:'+col+'">Period '+(idx===0?'A':'B')+'</div><span style="font-size:10px;color:var(--text3)">'+item.d.label+'</span></div><div class="cb"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px"><div><div class="ml">Ship Cost</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:'+col+'">$'+fmt(s.shipTot)+'</div></div><div><div class="ml">Pick Fees</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:var(--cyan)">$'+fmt(s.pickTot)+'</div></div><div><div class="ml">Orders</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:var(--text)">'+s.ordCnt+'</div></div><div><div class="ml">Avg/Ship</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:var(--purple)">$'+fmt(s.avg)+'</div></div><div><div class="ml">Intl</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:var(--amber)">'+s.intl+'</div></div><div><div class="ml">Top Carrier</div><div style="font-family:var(--head);font-size:12px;font-weight:700;color:var(--text2);margin-top:4px">'+s.topCarrier+'</div></div></div>';
+    Object.keys(s.carriers).sort(function(a,b){return s.carriers[b]-s.carriers[a];}).slice(0,5).forEach(function(c){html+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--text2)">'+c+'</span><span style="font-family:var(--mono);color:'+col+'">$'+fmt(s.carriers[c])+'</span></div>';});
+    html+='</div></div>';
+  });
+  html+='</div>';
+  function dc(v){return v>0?'var(--magenta)':v<0?'var(--teal)':'var(--text3)';}
+  function ds(v,m){return(v>=0?'+':'')+(m?'$'+fmt(Math.abs(v)):v)+(v>0?' up':v<0?' down':'');}
+  var dS=sB.shipTot-sA.shipTot,dP=sB.pickTot-sA.pickTot,dO=sB.ordCnt-sA.ordCnt,dA=sB.avg-sA.avg;
+  html+='<div class="cpanel"><div class="ph"><div class="pt2">Delta A to B</div></div><div class="cb"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px"><div><div class="ml">Shipping</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:'+dc(dS)+'">'+ds(dS,true)+'</div></div><div><div class="ml">Pick Fees</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:'+dc(dP)+'">'+ds(dP,true)+'</div></div><div><div class="ml">Orders</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:'+dc(dO)+'">'+ds(dO,false)+'</div></div><div><div class="ml">Avg/Ship</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:'+dc(dA)+'">'+ds(dA,true)+'</div></div></div></div></div>';
+  res.innerHTML=html;
+  document.getElementById('cmpAiBtn').style.display='';
+}
+
+async function runCompareAI(){
+  var btn=document.getElementById('cmpAiBtn'),res=document.getElementById('cmpAiResult'),txt=document.getElementById('cmpAiText');
+  if(!cmpDataA||!cmpDataB){toast('Run comparison first','warn');return;}
+  btn.disabled=true;btn.textContent='Generating...';
+  res.style.display='block';txt.className='ai-narrative loading';txt.textContent='Analyzing...';
+  function s(d){var t=0,p=0,u={};for(var i=0;i<d.ship.length;i++)t+=parseFloat(d.ship[i].charge_amount||0);for(var i=0;i<d.orders.length;i++){p+=parseFloat(d.orders[i].initial_pick_fee_amount||0)+parseFloat(d.orders[i].additional_pick_fee_amount||0);if(d.orders[i].order_number)u[d.orders[i].order_number]=true;}return{ship:t,pick:p,ords:Object.keys(u).length};}
+  var sA=s(cmpDataA),sB=s(cmpDataB);
+  var prompt='You are an ops analyst for Craighill (NYC design brand, 3PL is HLC Brooklyn). Write 3-4 sentences comparing these two invoice periods. Highlight cost changes, volume changes, and anything worth flagging.\n\nPeriod A ('+cmpDataA.label+'): shipping $'+fmt(sA.ship)+', pick fees $'+fmt(sA.pick)+', orders '+sA.ords+'\nPeriod B ('+cmpDataB.label+'): shipping $'+fmt(sB.ship)+', pick fees $'+fmt(sB.pick)+', orders '+sB.ords+'\n\nNo bullets. Write as a concise ops brief.';
+  var text=await callAI(prompt,function(model){document.getElementById('cmpAiModel').textContent=model.indexOf('sonnet')>=0?'Sonnet 4':'Haiku 3.5';});
+  txt.className='ai-narrative';txt.textContent=text;
+  btn.disabled=false;btn.textContent='Regenerate';
+}
+
+>
