@@ -956,8 +956,9 @@ function detectCredits(){
   var autoCredits=invData.filter(function(c){var a=parseFloat(c.amount||0);return a<0||(c.charge_on_invoice||'').toLowerCase()==='credit';});
   var list=document.getElementById('autoCredList'),em=document.getElementById('autoCredE');
   setText('autoCredHint',autoCredits.length+' found in period');
-  if(!autoCredits.length){list.innerHTML='';em.style.display='block';document.getElementById('matchPanel').style.display='none';return;}
-  em.style.display='none';
+  if(!list){console.warn('autoCredList not found');return;}
+  if(!autoCredits.length){list.innerHTML='';if(em)em.style.display='block';var mp=document.getElementById('matchPanel');if(mp)mp.style.display='none';return;}
+  if(em)em.style.display='none';
   var html='';
   
   var html='';
@@ -1301,7 +1302,9 @@ function drawHBar2(id,labels,data,color,lW,money){
 
 // ── SUPABASE PAGINATED FETCH ──────────────────────────────────────────────────
 async function fetchAll(table,filters){
-  var allRows=[],batchSize=1000,from=0,maxBatches=50;
+  // Use large batch size matching PostgREST max (10k set via ALTER ROLE)
+  // Fewer round trips = faster load, less rate limit risk
+  var allRows=[],batchSize=9999,from=0,maxBatches=10;
   for(var batch=0;batch<maxBatches;batch++){
     var q=sb.from(table).select('*');
     if(filters&&filters.q!=='ALL'){
@@ -1314,7 +1317,6 @@ async function fetchAll(table,filters){
     allRows=allRows.concat(r.data);
     if(r.data.length<batchSize)break;
     from+=batchSize;
-    await new Promise(function(res){setTimeout(res,0);});
   }
   return allRows;
 }
