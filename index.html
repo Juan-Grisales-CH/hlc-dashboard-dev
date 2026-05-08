@@ -570,9 +570,9 @@ async function init(){
     await loadAll();
     showLoad('Ready!',100);
     setTimeout(hideLoad,400);
-    sb.channel('cr').on('postgres_changes',{event:'*',schema:'public',table:'credit_log'},function(){loadCredits();}).subscribe();
+    stry{sb.channel('cr').on('postgres_changes',{event:'*',schema:'public',table:'credit_log'},function(){loadCredits();}).subscribe();}catch(re){console.warn('Realtime:',re);}
   }catch(e){
-    setSt('err','Connection failed');
+    setSt('err','Data loaded — realtime unavailable');
     console.error(e);
     hideLoad();
     toast('Supabase error: '+e.message,'err');
@@ -594,6 +594,7 @@ async function loadAll(){
   renderInvoice();
   detectCredits();
   runOutlierCheck();
+  setTimeout(function(){applyShipFlt();applyOrdFlt();renderInvoice();},200);
   // Reset AI panel
   document.getElementById('aiEmpty').style.display='block';
   document.getElementById('aiNarrative').style.display='none';
@@ -631,20 +632,23 @@ function buildQuery(table){
 
 // ── DATA LOADERS ──────────────────────────────────────────────────────────────
 async function loadShipping(){
-  var r=await buildQuery('rails_shipping_charges').order('ship_date',{ascending:false});
-  shipData=r.data||[];
+  var filters={gte_from:activePeriod.from,lte_to:activePeriod.to,q:activePeriod.q};
+  shipData=await fetchAll('rails_shipping_charges',filters);
+  shipData.sort(function(a,b){return (b.ship_date||'').localeCompare(a.ship_date||'');});
   setText('cnt-s',shipData.length.toLocaleString());
   buildShipChips();
 }
 async function loadOrders(){
-  var r=await buildQuery('rails_order_charges').order('ship_datetime',{ascending:false});
-  ordData=r.data||[];
+  var filters={gte_from:activePeriod.from,lte_to:activePeriod.to,q:activePeriod.q};
+  ordData=await fetchAll('rails_order_charges',filters);
+  ordData.sort(function(a,b){return (b.ship_datetime||'').localeCompare(a.ship_datetime||'');});
   setText('cnt-o',ordData.length.toLocaleString());
   buildOrdChips();
 }
 async function loadInvoice(){
-  var r=await buildQuery('rails_invoice_charges').order('date_from',{ascending:false});
-  invData=r.data||[];
+  var filters={gte_from:activePeriod.from,lte_to:activePeriod.to,q:activePeriod.q};
+  invData=await fetchAll('rails_invoice_charges',filters);
+  invData.sort(function(a,b){return (b.date_from||'').localeCompare(a.date_from||'');});
   setText('cnt-i',invData.length.toLocaleString());
 }
 async function loadCredits(){
@@ -1112,6 +1116,69 @@ function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(
 function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'info')+' show';clearTimeout(t._to);t._to=setTimeout(function(){t.classList.remove('show');},3500);}
 
 init();
+
+// ── CANVAS / CHART FUNCTIONS ──────────────────────────────────────────────────
+function setupCanvas(cv,w,h){
+  var dpr=window.devicePixelRatio||1;
+  cv.width=w*dpr;cv.height=h*dpr;
+  cv.style.width=w+'px';cv.style.height=h+'px';
+  var ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  return ctx;
+}
+
+function drawHBar2(id,labels,data,color,lW,money){
+  var cv=document.getElementById(id);
+  if(!cv||!data.length)return;
+  var W=cv.parentElement?cv.parentElement.offsetWidth||400:400;
+  var H=parseInt(cv.style.height)||160;
+  var ctx=setupCanvas(cv,W,H);
+  ctx.clearRect(0,0,W,H);
+  var maxV=0;for(var i=0;i<data.length;i++)if(data[i]>maxV)maxV=data[i];
+  if(!maxV)maxV=1;
+  var bH=Math.max(Math.floor((H-10)/Math.max(labels.length,1))-3,8);
+  var lWw=lW||80;
+  for(var i=0;i<labels.length;i++){
+    var y=5+i*(bH+3);
+    var bLen=Math.floor((data[i]/maxV)*(W-lWw-65));
+    ctx.fillStyle='#66668a';
+    ctx.font='10px Share Tech Mono,monospace';
+    ctx.textAlign='right';
+    var maxChars=Math.max(Math.floor(lWw/7),4);
+    ctx.fillText(String(labels[i]).slice(0,maxChars),lWw-4,y+bH/2+3);
+    ctx.fillStyle=color+'22';
+    ctx.fillRect(lWw,y,bLen,bH);
+    ctx.strokeStyle=color;
+    ctx.lineWidth=1;
+    ctx.strokeRect(lWw,y,bLen,bH);
+    ctx.fillStyle=color;
+    ctx.font='bold 11px Rajdhani,sans-serif';
+    ctx.textAlign='left';
+    var valStr=money?('$'+fmtK(data[i])):String(data[i]);
+    ctx.fillText(valStr,lWw+bLen+4,y+bH/2+3);
+  }
+}
+
+// ── SUPABASE ROW LIMIT FIX — paginate to get all rows ─────────────────────────
+async function fetchAll(table, filters){
+  var allRows=[];
+  var pageSize=1000;
+  var from=0;
+  while(true){
+    var q=sb.from(table).select('*').range(from,from+pageSize-1);
+    if(filters){
+      if(filters.gte_from&&filters.q!=='ALL') q=q.gte('date_from',filters.gte_from);
+      if(filters.lte_to&&filters.q!=='ALL') q=q.lte('date_to',filters.lte_to);
+    }
+    var r=await q;
+    if(r.error){console.error('fetchAll error on '+table,r.error);break;}
+    if(!r.data||r.data.length===0)break;
+    allRows=allRows.concat(r.data);
+    if(r.data.length<pageSize)break;
+    from+=pageSize;
+  }
+  return allRows;
+}
+
 </script>
 </body>
 </html>
