@@ -960,20 +960,20 @@ function detectCredits(){
   if(!autoCredits.length){list.innerHTML='';if(em)em.style.display='block';var mp=document.getElementById('matchPanel');if(mp)mp.style.display='none';return;}
   if(em)em.style.display='none';
   var html='';
-  
-  var html='';
+  window._credRows=window._credRows||{};
   for(var i=0;i<autoCredits.length;i++){
     var c=autoCredits[i],amt=Math.abs(parseFloat(c.amount||0)),rid='acr'+i;
+    window._credRows[rid]={desc:c.description||'',amt:amt,id:c.id||''};
     html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:12px">'+
       '<div style="flex:1;min-width:0">'+
       '<div style="font-size:12px;color:var(--teal);margin-bottom:3px;font-weight:600">$'+fmt(amt)+' Credit</div>'+
       '<div style="font-size:10px;color:var(--text3);margin-bottom:2px">'+(c.description||'No description')+'</div>'+
-      '<div style="font-size:10px;color:var(--text3)">'+(c.date_from||'')+(c.date_to?' \u2013 '+c.date_to:'')+'</div>'+
+      '<div style="font-size:10px;color:var(--text3)">'+(c.date_from||'')+(c.date_to?' – '+c.date_to:'')+'</div>'+
       '<div id="'+rid+'" class="ai-explain-text" style="margin-top:6px"></div>'+
       '</div>'+
       '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'+
-      '<button class="bsm bsm-lime" onclick="prefillClaim(\''+esc(c.description||'')+'\','+amt+',\''+esc(c.id||'')+'\')">+ Log Claim</button>'+
-      '<button class="bsm bsm-amber" onclick="explainCredit(\''+rid+'\','+amt+',\''+esc(c.description||'')+'\')">&#10022; AI</button>'+
+      '<button class="bsm bsm-lime" onclick="prefillCredById(''+rid+'')">+ Log Claim</button>'+
+      '<button class="bsm bsm-amber" onclick="explainCredById(''+rid+'')">&#10022; AI</button>'+
       '</div></div>';
   }
   list.innerHTML=html;
@@ -1331,6 +1331,17 @@ async function explainOrdRowById(rid){
   var prompt='You are an ops analyst for Craighill (NYC design brand, ships via HLC Brooklyn 3PL). In ONE sentence explain these pick/pack fees and whether they look normal.\n\nOrder: '+(info.order||'?')+' | Carrier: '+(info.carrier||'?')+' | Package: '+(info.pkg||'?')+' | Destination: '+info.city+' ('+info.country+') | Initial pick: $'+fmt(info.ip||0)+' | Add\'l pick: $'+fmt(info.ap||0)+'\nOutlier threshold: '+OUTLIER_PICK_THRESHOLD+' additional picks\n\nStart with \"These fees..."';
   var text=await callAI(prompt,null);
   el.className='ai-explain-text';el.textContent=text;
+}
+
+function prefillCredById(rid){
+  var d=window._credRows&&window._credRows[rid];
+  if(!d)return;
+  prefillClaim(d.desc,d.amt,d.id);
+}
+async function explainCredById(rid){
+  var d=window._credRows&&window._credRows[rid];
+  if(!d)return;
+  explainCredit(rid,d.amt,d.desc);
 }
 
 init();
