@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HLC · INVOICE INTELLIGENCE v3.1</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<title>HLC · INVOICE INTELLIGENCE v4.1</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
-:root{--bg:#060608;--panel:#0d0d14;--panel2:#12121c;--panel3:#181826;--border:#1e1e2e;--border2:#2a2a3e;--border3:#363650;--lime:#b8ff3c;--lime2:#8fcc1e;--cyan:#00e5ff;--magenta:#ff2d9b;--amber:#ffaa00;--red:#ff2d55;--purple:#7c3aed;--teal:#00d4aa;--text:#e0e0f0;--text2:#8888aa;--text3:#44445a;--text4:#22223a;--mono:'Share Tech Mono',monospace;--head:'Rajdhani',sans-serif;--gl:0 0 8px rgba(184,255,60,0.4);--gc:0 0 8px rgba(0,229,255,0.4);--gm:0 0 8px rgba(255,45,155,0.4);--ga:0 0 8px rgba(255,170,0,0.4)}
+:root{--bg:#060608;--panel:#0d0d14;--panel2:#12121c;--panel3:#181826;--border:#1e1e2e;--border2:#2a2a3e;--border3:#363650;--lime:#b8ff3c;--lime2:#8fcc1e;--cyan:#00e5ff;--magenta:#ff2d9b;--amber:#ffaa00;--red:#ff2d55;--purple:#7c3aed;--teal:#00d4aa;--text:#e0e0f0;--text2:#8888aa;--text3:#44445a;--mono:'Share Tech Mono',monospace;--head:'Rajdhani',sans-serif;--gl:0 0 8px rgba(184,255,60,0.4);--gc:0 0 8px rgba(0,229,255,0.4);--gm:0 0 8px rgba(255,45,155,0.4);--ga:0 0 8px rgba(255,170,0,0.4)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;min-height:100vh}
 body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);pointer-events:none;z-index:9999}
@@ -25,11 +24,8 @@ body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(r
 .pulse.err{background:var(--magenta)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 .hdr-r{display:flex;align-items:center;gap:10px}
-.usel{background:var(--panel2);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:11px;padding:5px 10px;outline:none;cursor:pointer}
-.bup{background:transparent;border:1px solid var(--lime);color:var(--lime);font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:6px 14px;cursor:pointer;transition:all .15s;text-transform:uppercase;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
-.bup:hover{background:var(--lime);color:var(--bg);box-shadow:var(--gl)}
-#fi{display:none}
-.tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:48px;z-index:99}
+.mono-sel{background:var(--panel2);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:11px;padding:5px 10px;outline:none;cursor:pointer}
+.tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:48px;z-index:99;overflow-x:auto}
 .tab{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:7px;white-space:nowrap}
 .tab:hover{color:var(--text2)}
 .tab.active{color:var(--lime);border-bottom-color:var(--lime)}
@@ -37,42 +33,45 @@ body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(r
 .tab.active .tb{background:rgba(184,255,60,.15);color:var(--lime)}
 .tc{display:none}.tc.active{display:block}
 .main{padding:20px;max-width:1600px;position:relative;z-index:1}
+/* Period bar */
+.period-bar{background:var(--panel2);border:1px solid var(--border2);padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.period-label{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);flex-shrink:0}
+.pdiv{width:1px;height:20px;background:var(--border2);flex-shrink:0}
+.date-inputs{display:flex;align-items:center;gap:6px}
+.date-inputs input{background:var(--panel3);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:4px 8px;outline:none;width:120px}
+.date-inputs input:focus{border-color:var(--cyan)}
+.go-btn{font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:5px 14px;cursor:pointer;border:1px solid var(--lime);background:transparent;color:var(--lime);transition:all .15s}
+.go-btn:hover{background:rgba(184,255,60,.1)}
+.period-status{margin-left:auto;font-size:10px;color:var(--text3)}
+.period-status span{color:var(--lime)}
+/* KPI */
 .kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
 .mc{background:var(--panel);border:1px solid var(--border2);padding:14px 16px;position:relative;clip-path:polygon(0 6px,6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%);overflow:hidden}
-.mc::after{content:'';position:absolute;top:0;left:0;width:2px;height:100%;background:var(--border3)}
-.mc.al::after{background:var(--lime);box-shadow:var(--gl)}
-.mc.ac::after{background:var(--cyan);box-shadow:var(--gc)}
-.mc.am::after{background:var(--magenta);box-shadow:var(--gm)}
-.mc.aa::after{background:var(--amber);box-shadow:var(--ga)}
-.mc.at::after{background:var(--teal)}
-.mc.ap::after{background:var(--purple)}
-.ml{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;font-weight:600}
+.mc::after{content:'';position:absolute;top:0;left:0;width:2px;height:100%}
+.mc.al::after{background:var(--lime);box-shadow:var(--gl)}.mc.ac::after{background:var(--cyan)}.mc.am::after{background:var(--magenta)}.mc.aa::after{background:var(--amber)}.mc.at::after{background:var(--teal)}.mc.ap::after{background:var(--purple)}
+.ml{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
 .mv{font-family:var(--head);font-size:28px;font-weight:700;line-height:1;margin-bottom:4px}
-.mv.lime{color:var(--lime);text-shadow:var(--gl)}.mv.cyan{color:var(--cyan)}.mv.magenta{color:var(--magenta)}.mv.amber{color:var(--amber)}.mv.teal{color:var(--teal)}.mv.purple{color:var(--purple)}
+.mv.lime{color:var(--lime)}.mv.cyan{color:var(--cyan)}.mv.magenta{color:var(--magenta)}.mv.amber{color:var(--amber)}.mv.teal{color:var(--teal)}.mv.purple{color:var(--purple)}
 .ms{font-size:11px;color:var(--text3)}
-.vbar{background:var(--panel2);border:1px solid var(--border2);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.vbar-left{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text3)}
-.vbar-mode{color:var(--lime);font-size:12px;font-weight:600;letter-spacing:.06em}
-.vbar-right{display:flex;align-items:center;gap:8px}
-.vbtn{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;cursor:pointer;border:1px solid;background:transparent;transition:all .15s;clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))}
-.vbtn-lime{color:var(--lime);border-color:rgba(184,255,60,.4)}.vbtn-lime:hover,.vbtn-lime.active{background:rgba(184,255,60,.15);box-shadow:var(--gl)}
-.vbtn-cyan{color:var(--cyan);border-color:rgba(0,229,255,.4)}.vbtn-cyan:hover,.vbtn-cyan.active{background:rgba(0,229,255,.1)}
-.vbtn-gray{color:var(--text3);border-color:var(--border2)}.vbtn-gray:hover{color:var(--text2);border-color:var(--border3)}
-.vbtn-sm{padding:4px 10px;font-size:9px}
-.mini-dz{border:1px dashed var(--border3);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;cursor:pointer;transition:all .2s}
-.mini-dz:hover,.mini-dz.drag{border-color:var(--lime);background:rgba(184,255,60,.03)}
-.mini-dz-left{display:flex;align-items:center;gap:10px;font-size:10px;color:var(--text3)}
-.mini-dz-icon{color:var(--lime);font-size:14px;opacity:.7}
-.pw{margin-bottom:14px;display:none;background:var(--panel2);border:1px solid var(--border2);padding:10px 14px}
-.pl{font-size:12px;color:var(--lime);margin-bottom:6px;letter-spacing:.08em;font-weight:600}
-.pt{height:4px;background:var(--panel3);border-radius:2px}
-.pf{height:100%;background:linear-gradient(90deg,var(--lime2),var(--lime));width:0%;transition:width .3s ease;box-shadow:var(--gl);position:relative;overflow:hidden}
-.pf::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.25),transparent);animation:shimmer 1s infinite}
-@keyframes shimmer{0%{left:-100%}100%{left:200%}}
-.alert{display:none;background:rgba(255,45,155,.08);border:1px solid rgba(255,45,155,.3);padding:8px 14px;margin-bottom:14px;font-size:11px;color:var(--magenta);align-items:center;gap:8px}
-.alert.show{display:flex}
+/* AI Intelligence panel */
+.ai-panel{background:var(--panel);border:1px solid var(--border2);margin-bottom:16px;overflow:hidden}
+.ai-panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel2)}
+.ai-panel-title{font-family:var(--head);font-size:12px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--text2);display:flex;align-items:center;gap:8px}
+.ai-panel-title::before{content:'✦';color:var(--lime);font-size:11px}
+.ai-body{padding:16px;min-height:60px}
+.ai-narrative{font-size:12px;color:var(--text2);line-height:1.75;max-width:900px}
+.ai-narrative.loading{color:var(--text3);font-style:italic;display:flex;align-items:center;gap:8px}
+.ai-narrative.loading::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--lime);animation:blink 1s infinite}
+.ai-empty{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:10px}
+.ai-gen-btn{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:6px 16px;cursor:pointer;border:1px solid var(--lime);background:transparent;color:var(--lime);transition:all .15s;clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px))}
+.ai-gen-btn:hover{background:rgba(184,255,60,.12);box-shadow:var(--gl)}
+.ai-gen-btn:disabled{opacity:.4;cursor:not-allowed}
+.ai-model-badge{font-size:9px;color:var(--text3);letter-spacing:.08em}
+/* Outlier banner */
+.outlier-banner{display:none;background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);padding:10px 16px;margin-bottom:14px;font-size:11px;color:var(--amber);line-height:1.7}
+.outlier-banner.show{display:block}
+/* Charts */
 .charts-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:14px}
-.cw{grid-column:1/-1}
 .cpanel{background:var(--panel);border:1px solid var(--border2);overflow:hidden}
 .ph{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel2)}
 .pt2{font-family:var(--head);font-size:12px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--text2);display:flex;align-items:center;gap:8px}
@@ -81,10 +80,35 @@ body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(r
 .cb{padding:16px}
 canvas{display:block}
 .dw{display:flex;align-items:center;gap:20px}
-.dl{flex:1}
+.dl{flex:1;min-width:0}
 .li{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:10px;color:var(--text2);cursor:pointer;padding:2px 4px;transition:background .1s}
 .li:hover{background:rgba(255,255,255,.04)}
 .ld{width:8px;height:8px;flex-shrink:0}
+/* Tables */
+.tw{background:var(--panel);border:1px solid var(--border2);overflow:hidden;margin-bottom:16px}
+.tbl-ctrl{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--panel2);gap:10px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--panel2);border-bottom:1px solid var(--border2)}
+th{font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text2);padding:10px 14px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--text)}
+td{padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;font-size:12px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--panel2)}
+.tbl-foot{padding:8px 14px;border-top:1px solid var(--border2);background:var(--panel2);display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--text3)}
+.pager{display:flex;align-items:center;gap:5px}
+.pager button{background:transparent;border:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:10px;padding:2px 8px;cursor:pointer}
+.pager button:hover{border-color:var(--border3);color:var(--text2)}
+.pager button.cur{border-color:var(--lime);color:var(--lime);background:rgba(184,255,60,.08)}
+/* Badges */
+.badge{display:inline-flex;align-items:center;font-family:var(--mono);font-size:10px;letter-spacing:.06em;padding:2px 7px;white-space:nowrap;clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))}
+.bl{background:rgba(184,255,60,.12);color:var(--lime);border:1px solid rgba(184,255,60,.3)}
+.bc{background:rgba(0,229,255,.1);color:var(--cyan);border:1px solid rgba(0,229,255,.3)}
+.bm{background:rgba(255,45,155,.12);color:var(--magenta);border:1px solid rgba(255,45,155,.3)}
+.ba{background:rgba(255,170,0,.12);color:var(--amber);border:1px solid rgba(255,170,0,.3)}
+.bg{background:rgba(255,255,255,.05);color:var(--text3);border:1px solid var(--border2)}
+.bt{background:rgba(0,212,170,.1);color:var(--teal);border:1px solid rgba(0,212,170,.3)}
+.bp{background:rgba(124,58,237,.12);color:var(--purple);border:1px solid rgba(124,58,237,.3)}
+/* Filters */
 .flt-panel{background:var(--panel2);border:1px solid var(--border2);padding:12px 16px;margin-bottom:14px}
 .flt-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .flt-title{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3)}
@@ -96,1157 +120,996 @@ canvas{display:block}
 .chip{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border:1px solid var(--border2);color:var(--text3);cursor:pointer;transition:all .12s;background:transparent;white-space:nowrap}
 .chip:hover{border-color:var(--border3);color:var(--text2)}
 .chip.on{border-color:var(--lime);color:var(--lime);background:rgba(184,255,60,.08)}
-.chip.on-m{border-color:var(--magenta);color:var(--magenta);background:rgba(255,45,155,.08)}
-.chip.on-a{border-color:var(--amber);color:var(--amber);background:rgba(255,170,0,.08)}
-.chip.on-c{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.08)}
-.chip.on-t{border-color:var(--teal);color:var(--teal);background:rgba(0,212,170,.08)}
-.flt-input{background:var(--panel3);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:5px 10px;outline:none;transition:border-color .15s}
+.flt-input{background:var(--panel3);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:5px 10px;outline:none}
 .flt-input:focus{border-color:var(--cyan)}
-.tw{background:var(--panel);border:1px solid var(--border2);overflow:hidden;margin-bottom:16px}
-.tbl-ctrl{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--panel2);gap:10px;flex-wrap:wrap}
-table{width:100%;border-collapse:collapse}
-thead tr{background:var(--panel2);border-bottom:1px solid var(--border2)}
-th{font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text2);padding:10px 14px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none;transition:color .12s}
-th:hover{color:var(--text)}
-td{padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;font-size:12px}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:var(--panel2)}
-.tbl-foot{padding:8px 14px;border-top:1px solid var(--border2);background:var(--panel2);display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--text3)}
-.pager{display:flex;align-items:center;gap:5px}
-.pager button{background:transparent;border:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:10px;padding:2px 8px;cursor:pointer;transition:all .12s}
-.pager button:hover{border-color:var(--border3);color:var(--text2)}
-.pager button.cur{border-color:var(--lime);color:var(--lime);background:rgba(184,255,60,.08)}
-.badge{display:inline-flex;align-items:center;font-family:var(--mono);font-size:10px;letter-spacing:.06em;padding:2px 7px;white-space:nowrap;clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))}
-.bl{background:rgba(184,255,60,.12);color:var(--lime);border:1px solid rgba(184,255,60,.3)}
-.bc{background:rgba(0,229,255,.1);color:var(--cyan);border:1px solid rgba(0,229,255,.3)}
-.bm{background:rgba(255,45,155,.12);color:var(--magenta);border:1px solid rgba(255,45,155,.3)}
-.ba{background:rgba(255,170,0,.12);color:var(--amber);border:1px solid rgba(255,170,0,.3)}
-.bg{background:rgba(255,255,255,.05);color:var(--text3);border:1px solid var(--border2)}
-.bt{background:rgba(0,212,170,.1);color:var(--teal);border:1px solid rgba(0,212,170,.3)}
-.bp{background:rgba(124,58,237,.12);color:var(--purple);border:1px solid rgba(124,58,237,.3)}
+/* Vbtns */
+.vbtn{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;cursor:pointer;border:1px solid;background:transparent;transition:all .15s;clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))}
+.vbtn-lime{color:var(--lime);border-color:rgba(184,255,60,.4)}.vbtn-lime:hover{background:rgba(184,255,60,.12)}
+.vbtn-cyan{color:var(--cyan);border-color:rgba(0,229,255,.4)}.vbtn-cyan:hover{background:rgba(0,229,255,.08)}
+.vbtn-gray{color:var(--text3);border-color:var(--border2)}.vbtn-gray:hover{color:var(--text2)}
+.vbtn-sm{padding:3px 9px;font-size:9px}
+/* Credits form */
 .cfp{background:var(--panel);border:1px solid var(--border2);padding:16px;margin-bottom:14px}
 .fg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
 .fg label{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
-.fg input,.fg select{width:100%;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;outline:none;transition:border-color .15s}
+.fg input,.fg select{width:100%;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;outline:none}
 .fg input:focus,.fg select:focus{border-color:var(--cyan)}
 .full-input{width:100%;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;outline:none;resize:vertical;min-height:52px;margin-bottom:10px;display:block}
 .full-input:focus{border-color:var(--cyan)}
 .fa{display:flex;gap:8px}
-.btn-p{background:var(--lime);color:var(--bg);border:none;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:8px 18px;cursor:pointer;transition:all .15s;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
-.btn-p:hover{background:var(--lime2);box-shadow:var(--gl)}
-.btn-s{background:transparent;color:var(--text3);border:1px solid var(--border2);font-family:var(--mono);font-size:10px;padding:7px 14px;cursor:pointer;transition:all .15s}
+.btn-p{background:var(--lime);color:var(--bg);border:none;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:8px 18px;cursor:pointer;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+.btn-p:hover{background:var(--lime2)}
+.btn-s{background:transparent;color:var(--text3);border:1px solid var(--border2);font-family:var(--mono);font-size:10px;padding:7px 14px;cursor:pointer}
 .btn-s:hover{border-color:var(--border3);color:var(--text2)}
 .bsm{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;cursor:pointer;border:1px solid;background:transparent;transition:all .15s;clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))}
 .bsm-lime{color:var(--lime);border-color:rgba(184,255,60,.4)}.bsm-lime:hover{background:rgba(184,255,60,.12)}
 .bsm-gray{color:var(--text3);border-color:var(--border2)}.bsm-gray:hover{color:var(--text2)}
 .bsm-red{color:var(--magenta);border-color:rgba(255,45,155,.3)}.bsm-red:hover{background:rgba(255,45,155,.1)}
-.hist-controls{background:var(--panel2);border:1px solid var(--border2);padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
-.hist-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
-.sel-count{font-size:10px;color:var(--text3)}.sel-count span{color:var(--lime)}
-.hist-row{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
-.hist-row:last-child{border-bottom:none}
-.hist-row:hover{background:rgba(184,255,60,.03)}
-.hist-row.selected{background:rgba(184,255,60,.05);border-left:2px solid var(--lime)}
-.hist-cb{width:14px;height:14px;border:1px solid var(--border3);cursor:pointer;accent-color:var(--lime);flex-shrink:0}
-.hist-info{flex:1}
-.hist-period{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
-.hist-meta{font-size:11px;color:var(--text3)}
-.hist-stats{display:flex;gap:8px;align-items:center}
-.trend-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px}
-.compare-grid{display:grid;gap:12px;margin-bottom:16px}
-.cmp-card{background:var(--panel);border:1px solid var(--border2);padding:14px}
-.cmp-period{font-family:var(--head);font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px;letter-spacing:.06em}
-.cmp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.cmp-stat-lbl{font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;font-weight:600}
-.cmp-stat-val{font-family:var(--head);font-size:22px;font-weight:700}
-.expl{font-size:11px;color:var(--text2);line-height:1.5;max-width:360px}
-.expl.loading{color:var(--text3);font-style:italic}
+.bsm-amber{color:var(--amber);border-color:rgba(255,170,0,.3)}.bsm-amber:hover{background:rgba(255,170,0,.08)}
+/* Match cards */
+.match-card{background:rgba(255,170,0,.06);border:1px solid rgba(255,170,0,.25);padding:10px 14px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.match-info{flex:1;min-width:0}
+.match-title{font-size:12px;color:var(--amber);margin-bottom:4px;font-weight:600}
+.match-detail{font-size:10px;color:var(--text3);line-height:1.6}
+.match-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end}
+/* AI explain inline */
+.ai-explain-wrap{padding:8px 14px 12px;background:rgba(0,0,0,.2)}
+.ai-explain-text{font-size:11px;color:var(--text2);line-height:1.6;max-width:700px}
+.ai-explain-text.loading{color:var(--text3);font-style:italic}
+/* Compare */
+.cmp-section{background:var(--panel2);border:1px solid var(--border2);padding:14px 16px;margin-bottom:14px}
+.cmp-section-title{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.cmp-range-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cmp-range-label{font-size:11px;padding:4px 12px;border:1px solid;font-family:var(--mono)}
+.cmp-range-a{color:var(--lime);border-color:rgba(184,255,60,.4)}
+.cmp-range-b{color:var(--cyan);border-color:rgba(0,229,255,.4)}
+/* Search highlight */
+.hl{background:rgba(184,255,60,.2);color:var(--lime)}
+/* Empty */
 .empty{text-align:center;padding:48px 24px;color:var(--text3)}
 .empty-i{font-size:26px;margin-bottom:12px;opacity:.3}
 .empty-t{font-family:var(--head);font-size:13px;color:var(--text2);margin-bottom:6px;letter-spacing:.06em}
 .empty-s{font-size:11px;max-width:280px;margin:0 auto;line-height:1.6}
-.toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-size:11px;padding:10px 16px;z-index:9000;transform:translateY(60px);opacity:0;transition:all .2s;max-width:300px;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+/* Load overlay */
+.load-overlay{position:fixed;inset:0;background:rgba(6,6,8,.92);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:500}
+.load-overlay.show{display:flex}
+.load-title{font-family:var(--head);font-size:18px;font-weight:700;color:var(--lime);letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px}
+.load-sub{font-size:10px;color:var(--text3);letter-spacing:.1em;margin-bottom:24px}
+.load-bar-wrap{width:280px;height:4px;background:var(--panel3)}
+.load-bar{height:100%;background:linear-gradient(90deg,var(--lime2),var(--lime));width:0%;transition:width .4s ease}
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-size:11px;padding:10px 16px;z-index:9000;transform:translateY(60px);opacity:0;transition:all .2s;max-width:320px;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.ok{border-left:2px solid var(--lime)}.toast.err{border-left:2px solid var(--magenta)}.toast.info{border-left:2px solid var(--cyan)}.toast.warn{border-left:2px solid var(--amber)}
-.load-overlay{position:fixed;inset:0;background:rgba(6,6,8,.9);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:500}
-.load-overlay.show{display:flex}
-.load-title{font-family:var(--head);font-size:18px;font-weight:700;color:var(--lime);letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px;text-shadow:var(--gl)}
-.load-sub{font-size:10px;color:var(--text3);letter-spacing:.1em;margin-bottom:24px}
-.load-bar-wrap{width:280px;height:4px;background:var(--panel3);border-radius:2px}
-.load-bar{height:100%;background:linear-gradient(90deg,var(--lime2),var(--lime));width:0%;transition:width .4s ease;box-shadow:var(--gl)}
 </style>
 </head>
 <body>
+
 <div class="load-overlay" id="loadOverlay">
   <div class="load-title">HLC Intelligence</div>
-  <div class="load-sub" id="loadSub">Connecting...</div>
+  <div class="load-sub" id="loadSub">Connecting to Supabase...</div>
   <div class="load-bar-wrap"><div class="load-bar" id="loadBar"></div></div>
 </div>
+
 <div class="hdr">
   <div class="logo">
     <div class="lm">CH</div>
-    <div><div class="lt">HLC · Invoice Intelligence</div><div class="ls">Craighill Ops · v3.0 · 3-Axis Taxonomy</div></div>
+    <div><div class="lt">HLC · Invoice Intelligence</div><div class="ls">Craighill Ops · v4.1 · Supabase Live</div></div>
   </div>
   <div class="hdr-c"><div class="pulse" id="dbP"></div><span id="dbS">Connecting...</span></div>
   <div class="hdr-r">
-    <select class="usel" id="usel"><option value="juan">// Juan Grisales</option><option value="kim">// Kim Chan</option><option value="jacobo">// Jacobo Ospina</option><option value="dpm">// DPM (TBD)</option></select>
-    <button class="bup" onclick="document.getElementById('fi').click()">+ Upload Invoice</button>
-    <input type="file" id="fi" accept=".xlsx,.xls" multiple onchange="handleFile(event)">
+    <select class="mono-sel" id="usel">
+      <option value="juan">// Juan Grisales</option>
+      <option value="kim">// Kim Chan</option>
+      <option value="jacobo">// Jacobo Ospina</option>
+      <option value="dpm">// DPM (TBD)</option>
+    </select>
   </div>
 </div>
+
 <div class="tabs">
-  <div class="tab active" onclick="goTab('analysis')" id="tab-analysis">Analysis <span class="tb" id="cnt-a">—</span></div>
-  <div class="tab" onclick="goTab('table')" id="tab-table">All Charges <span class="tb" id="cnt-t">—</span></div>
-  <div class="tab" onclick="goTab('flags')" id="tab-flags">Flagged <span class="tb" id="cnt-f">—</span></div>
-  <div class="tab" onclick="goTab('credits')" id="tab-credits">Credits <span class="tb" id="cnt-cr">0</span></div>
-  <div class="tab" onclick="goTab('trends')" id="tab-trends">Trends</div>
-  <div class="tab" onclick="goTab('history')" id="tab-history">History <span class="tb" id="cnt-h">0</span></div>
+  <div class="tab active" onclick="goTab('overview')" id="tab-overview">Overview</div>
+  <div class="tab" onclick="goTab('shipping')" id="tab-shipping">Shipping <span class="tb" id="cnt-s">—</span></div>
+  <div class="tab" onclick="goTab('orders')" id="tab-orders">Order Charges <span class="tb" id="cnt-o">—</span></div>
+  <div class="tab" onclick="goTab('invoice')" id="tab-invoice">Invoice Charges <span class="tb" id="cnt-i">—</span></div>
+  <div class="tab" onclick="goTab('credits')" id="tab-credits">Credits <span class="tb" id="cnt-cr">—</span></div>
+  <div class="tab" onclick="goTab('compare')" id="tab-compare">Compare</div>
+  <div class="tab" onclick="goTab('search')" id="tab-search">Search</div>
 </div>
+
 <div class="main">
 
-<!-- ANALYSIS -->
-<div class="tc active" id="tc-analysis">
-  <div class="vbar">
-    <div class="vbar-left"><span>View:</span><span class="vbar-mode" id="viewModeLabel">All Periods — Aggregate</span></div>
-    <div class="vbar-right">
-      <button class="vbtn vbtn-lime active" id="btnAggregate" onclick="setViewMode('aggregate')">Aggregate</button>
-      <button class="vbtn vbtn-cyan" id="btnCompare" onclick="setViewMode('compare')">Compare Periods</button>
-    </div>
+<!-- PERIOD BAR -->
+<div class="period-bar" id="periodBar">
+  <span class="period-label">Period //</span>
+  <select class="mono-sel" id="qsel" onchange="setQ(this.value)" style="color:var(--lime);min-width:120px">
+    <option value="Q4-2025">Q4 2025</option>
+    <option value="Q1-2026">Q1 2026</option>
+    <option value="Q2-2026" selected>Q2 2026</option>
+    <option value="Q3-2026">Q3 2026</option>
+    <option value="Q4-2026">Q4 2026</option>
+    <option value="Q1-2027">Q1 2027</option>
+    <option value="ALL">All Time</option>
+  </select>
+  <div class="pdiv"></div>
+  <span style="font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase">Custom //</span>
+  <div class="date-inputs">
+    <input type="date" id="d-from">
+    <span style="color:var(--text3);font-size:10px">→</span>
+    <input type="date" id="d-to">
+    <button class="go-btn" onclick="applyCustomRange()">Go</button>
   </div>
-  <div class="mini-dz" id="miniDz" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)" onclick="document.getElementById('fi').click()">
-    <div class="mini-dz-left"><span class="mini-dz-icon">▲</span><span>Drop Rails XLSX here — Shipping Charges Detail or Pick Fee Detail · multi-file OK</span></div>
-    <span class="badge bg">XLSX</span>
-  </div>
-  <div class="pw" id="pw"><div class="pl" id="pl">Processing...</div><div class="pt"><div class="pf" id="pf"></div></div></div>
-  <div class="alert" id="dupAlert">▲ CROSS-PERIOD DUPLICATES DETECTED — flagged as DT:DUP</div>
+  <span class="period-status" id="periodStatus">Loading...</span>
+</div>
+
+<!-- ══ OVERVIEW TAB ══ -->
+<div class="tc active" id="tc-overview">
+  <div class="outlier-banner" id="outlierBanner"></div>
   <div class="kpi-row">
-    <div class="mc al"><div class="ml">Total Charges</div><div class="mv lime" id="m-tot">—</div><div class="ms" id="m-ts">Loading...</div></div>
-    <div class="mc ac"><div class="ml">Total Cost</div><div class="mv cyan" id="m-cost">—</div><div class="ms" id="m-cs"></div></div>
-    <div class="mc aa"><div class="ml">Flagged</div><div class="mv amber" id="m-flag">—</div><div class="ms" id="m-fs"></div></div>
-    <div class="mc am"><div class="ml">Credit Exposure</div><div class="mv magenta" id="m-exp">—</div><div class="ms" id="m-es"></div></div>
-    <div class="mc at"><div class="ml">$ Recovered</div><div class="mv teal" id="m-rec">—</div><div class="ms">approved + resolved</div></div>
-    <div class="mc ap"><div class="ml">Recovery Rate</div><div class="mv purple" id="m-rrate">—</div><div class="ms">of exposure filed</div></div>
+    <div class="mc al"><div class="ml">Shipping Cost</div><div class="mv lime" id="ov-ship">—</div><div class="ms" id="ov-ship-s">carrier charges</div></div>
+    <div class="mc ac"><div class="ml">Pick & Pack</div><div class="mv cyan" id="ov-pick">—</div><div class="ms" id="ov-pick-s">order fees</div></div>
+    <div class="mc aa"><div class="ml">Overhead</div><div class="mv amber" id="ov-oh">—</div><div class="ms">storage · mgmt · supplies</div></div>
+    <div class="mc at"><div class="ml">Credits Received</div><div class="mv teal" id="ov-cred">—</div><div class="ms">from invoice data</div></div>
+    <div class="mc am"><div class="ml">Total Orders</div><div class="mv magenta" id="ov-ords">—</div><div class="ms">unique orders in period</div></div>
+    <div class="mc ap"><div class="ml">Avg Ship Cost</div><div class="mv purple" id="ov-avg">—</div><div class="ms">per shipment</div></div>
   </div>
-  <div id="aggView">
-    <div id="catSec" style="display:none">
-      <div class="charts-grid">
-        <div class="cpanel"><div class="ph"><div class="pt2">Carrier Cost Distribution</div><div class="ph-hint">click legend → filter table</div></div><div class="cb"><div class="dw"><canvas id="dcv" width="140" height="140"></canvas><div class="dl" id="dleg"></div></div></div></div>
-        <div class="cpanel"><div class="ph"><div class="pt2">Discrepancy Type — Exposure</div></div><div class="cb"><canvas id="cbcv" style="width:100%;height:160px"></canvas></div></div>
-      </div>
-      <div class="charts-grid">
-        <div class="cpanel"><div class="ph"><div class="pt2">Charge Type Mix — Top 6</div></div><div class="cb"><canvas id="ctcv" style="width:100%;height:160px"></canvas></div></div>
-        <div class="cpanel"><div class="ph"><div class="pt2">Top 8 Destination Countries</div></div><div class="cb"><canvas id="cntrycv" style="width:100%;height:160px"></canvas></div></div>
-      </div>
-      <div class="tw">
-        <div class="ph"><div class="pt2">Discrepancy Type Summary</div><div class="ph-hint">click row → view in Flags tab</div></div>
-        <table><thead><tr><th>DT</th><th>Label</th><th>Charge Types</th><th>Count</th><th>Exposure</th><th>Action</th></tr></thead><tbody id="catTb"></tbody></table>
+
+  <!-- AI Period Intelligence -->
+  <div class="ai-panel">
+    <div class="ai-panel-hdr">
+      <div class="ai-panel-title">Period Intelligence</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="ai-model-badge" id="aiModelBadge">—</span>
+        <button class="ai-gen-btn" id="aiGenBtn" onclick="generateNarrative()">✦ Generate Summary</button>
       </div>
     </div>
-    <div class="empty" id="aggEmpty" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No invoice data</div><div class="empty-s">Upload a Rails XLSX above or select periods in History</div></div>
+    <div class="ai-body">
+      <div class="ai-empty" id="aiEmpty">
+        <span>Select a period and load data, then click <strong style="color:var(--lime)">Generate Summary</strong> for an AI narrative of this period's financials.</span>
+      </div>
+      <div class="ai-narrative" id="aiNarrative" style="display:none"></div>
+    </div>
   </div>
-  <div id="cmpView" style="display:none">
-    <div class="cpanel cw" style="margin-bottom:16px"><div class="ph"><div class="pt2">Cost by Period</div></div><div class="cb"><canvas id="cmpLine" style="width:100%;height:200px"></canvas></div></div>
-    <div id="cmpCards" class="compare-grid"></div>
-    <div class="empty" id="cmpEmpty" style="display:none"><div class="empty-i">◈</div><div class="empty-t">Select 2+ periods to compare</div><div class="empty-s">Go to History, check periods, click Compare Selected</div></div>
+
+  <div class="charts-grid">
+    <div class="cpanel"><div class="ph"><div class="pt2">Carrier Cost Split</div><div class="ph-hint">by total charge $</div></div><div class="cb"><div class="dw"><canvas id="donutCv" width="140" height="140"></canvas><div class="dl" id="donutLeg"></div></div></div></div>
+    <div class="cpanel"><div class="ph"><div class="pt2">Top Destination States</div></div><div class="cb"><canvas id="stateCv" style="width:100%;height:160px"></canvas></div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="cpanel"><div class="ph"><div class="pt2">Service Level Mix</div></div><div class="cb"><canvas id="svcCv" style="width:100%;height:160px"></canvas></div></div>
+    <div class="cpanel"><div class="ph"><div class="pt2">Package Type Distribution</div></div><div class="cb"><canvas id="pkgCv" style="width:100%;height:160px"></canvas></div></div>
+  </div>
+
+  <div class="tw">
+    <div class="ph"><div class="pt2">Invoice Charges Breakdown</div><div class="ph-hint">monthly overhead + credits</div></div>
+    <table><thead><tr><th>Type</th><th>Period</th><th>Description</th><th>Amount</th><th>Qty</th></tr></thead>
+    <tbody id="invSummTb"></tbody></table>
+    <div class="empty" id="invSummE" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No invoice data for this period</div></div>
   </div>
 </div>
 
-<!-- ALL CHARGES TABLE -->
-<div class="tc" id="tc-table">
+<!-- ══ SHIPPING TAB ══ -->
+<div class="tc" id="tc-shipping">
   <div class="flt-panel">
     <div class="flt-hdr">
-      <span class="flt-title">// Filter · All Charges</span>
-      <div style="display:flex;gap:8px">
-        <button class="vbtn vbtn-gray vbtn-sm" onclick="clearAllFilters()">Clear All</button>
-        <button class="vbtn vbtn-lime vbtn-sm" onclick="exportCSV()">Export CSV</button>
+      <span class="flt-title">// Filter · Shipping Charges</span>
+      <div style="display:flex;gap:6px">
+        <button class="vbtn vbtn-gray vbtn-sm" onclick="clearShipFlt()">Clear</button>
+        <button class="vbtn vbtn-lime vbtn-sm" onclick="exportShip()">Export CSV</button>
       </div>
     </div>
     <div class="flt-row">
-      <div class="flt-grp">
-        <div class="flt-lbl">Discrepancy Type (multi-select)</div>
-        <div class="flt-chips" id="flt-dt">
-          <div class="chip on" onclick="toggleDT(this,'ALL')">All</div>
-          <div class="chip" onclick="toggleDT(this,'DUP')" data-color="m">DUP</div>
-          <div class="chip" onclick="toggleDT(this,'RATE')" data-color="a">RATE</div>
-          <div class="chip" onclick="toggleDT(this,'DIM')" data-color="a">DIM</div>
-          <div class="chip" onclick="toggleDT(this,'ACC')" data-color="a">ACC</div>
-          <div class="chip" onclick="toggleDT(this,'SVC-FAIL')" data-color="m">SVC-FAIL</div>
-          <div class="chip" onclick="toggleDT(this,'SVC-MISMATCH')" data-color="c">SVC-MISMATCH</div>
-          <div class="chip" onclick="toggleDT(this,'TAX-DUTY')" data-color="c">TAX-DUTY</div>
-          <div class="chip" onclick="toggleDT(this,'DATA')" data-color="t">DATA</div>
-          <div class="chip" onclick="toggleDT(this,'UNAUTH')" data-color="m">UNAUTH</div>
-          <div class="chip" onclick="toggleDT(this,'OTHER')">OTHER</div>
-          <div class="chip" onclick="toggleDT(this,'INFO')">INFO (clean)</div>
-        </div>
-      </div>
-    </div>
-    <div class="flt-row">
-      <div class="flt-grp">
-        <div class="flt-lbl">Carrier</div>
-        <div class="flt-chips" id="flt-carrier"><div class="chip on" onclick="setSingle('carrier','ALL',this)">All</div></div>
-      </div>
-      <div class="flt-grp">
-        <div class="flt-lbl">Charge Type</div>
-        <div class="flt-chips" id="flt-ct"><div class="chip on" onclick="setSingle('ct','ALL',this)">All</div></div>
-      </div>
-      <div class="flt-grp">
-        <div class="flt-lbl">Country</div>
+      <div class="flt-grp"><div class="flt-lbl">Carrier</div><div class="flt-chips" id="sflt-carrier"><div class="chip on" onclick="setSFlt('carrier','ALL',this)">All</div></div></div>
+      <div class="flt-grp"><div class="flt-lbl">Destination</div>
         <div class="flt-chips">
-          <div class="chip on" id="fc-all" onclick="setSingle('country','ALL',this)">All</div>
-          <div class="chip" id="fc-us" onclick="setSingle('country','US',this)">US</div>
-          <div class="chip" id="fc-intl" onclick="setSingle('country','Intl',this)">Intl</div>
+          <div class="chip on" id="sfc-all" onclick="setSFlt('country','ALL',this)">All</div>
+          <div class="chip" id="sfc-us" onclick="setSFlt('country','US',this)">Domestic</div>
+          <div class="chip" id="sfc-intl" onclick="setSFlt('country','Intl',this)">International</div>
         </div>
       </div>
-      <div class="flt-grp">
-        <div class="flt-lbl">Search</div>
-        <input class="flt-input" id="flt-search" placeholder="Order # or service..." oninput="applyFilters()" style="width:200px">
-      </div>
-      <div class="flt-grp">
-        <div class="flt-lbl">Amount</div>
+      <div class="flt-grp"><div class="flt-lbl">Search</div><input class="flt-input" id="sflt-search" placeholder="Order #, tracking, city..." oninput="applyShipFlt()" style="width:200px"></div>
+      <div class="flt-grp"><div class="flt-lbl">Amount Range</div>
         <div style="display:flex;gap:4px;align-items:center">
-          <input class="flt-input" id="flt-min" type="number" placeholder="$0" oninput="applyFilters()" style="width:70px">
+          <input class="flt-input" id="sflt-min" type="number" placeholder="$0" oninput="applyShipFlt()" style="width:70px">
           <span style="color:var(--text3);font-size:10px">–</span>
-          <input class="flt-input" id="flt-max" type="number" placeholder="max" oninput="applyFilters()" style="width:70px">
+          <input class="flt-input" id="sflt-max" type="number" placeholder="max" oninput="applyShipFlt()" style="width:70px">
         </div>
       </div>
     </div>
   </div>
   <div class="tw">
     <div class="tbl-ctrl">
-      <span style="font-size:10px;color:var(--text3)">Showing <span id="tbl-count" style="color:var(--lime)">0</span> of <span id="tbl-total" style="color:var(--text2)">0</span> charges</span>
-      <div style="display:flex;gap:6px;align-items:center">
-        <span style="font-size:9px;color:var(--text3)">Sort:</span>
-        <button class="vbtn vbtn-gray vbtn-sm" onclick="setSort('charge_amount')">Amount</button>
-        <button class="vbtn vbtn-gray vbtn-sm" onclick="setSort('carrier')">Carrier</button>
-        <button class="vbtn vbtn-gray vbtn-sm" onclick="setSort('disc_type')">DT</button>
-        <button class="vbtn vbtn-gray vbtn-sm" onclick="setSort('order_number')">Order #</button>
+      <span style="font-size:10px;color:var(--text3)">Showing <span id="ship-count" style="color:var(--lime)">0</span> of <span id="ship-total" style="color:var(--text2)">0</span></span>
+      <div style="display:flex;gap:6px">
+        <button class="vbtn vbtn-gray vbtn-sm" onclick="setShipSort('charge_amount')">↕ Amount</button>
+        <button class="vbtn vbtn-gray vbtn-sm" onclick="setShipSort('carrier')">↕ Carrier</button>
+        <button class="vbtn vbtn-gray vbtn-sm" onclick="setShipSort('ship_to_country')">↕ Country</button>
       </div>
     </div>
-    <table>
-      <thead><tr>
-        <th onclick="setSort('order_number')">Order # <span id="si-order_number"></span></th>
-        <th onclick="setSort('invoice_period')">Period <span id="si-invoice_period"></span></th>
-        <th onclick="setSort('carrier')">Carrier <span id="si-carrier"></span></th>
-        <th onclick="setSort('service_type')">Service <span id="si-service_type"></span></th>
-        <th onclick="setSort('destination_country')">Cty <span id="si-destination_country"></span></th>
-        <th onclick="setSort('charge_amount')">Amount <span id="si-charge_amount"></span></th>
-        <th onclick="setSort('charge_type')">CT <span id="si-charge_type"></span></th>
-        <th onclick="setSort('disc_type')">DT <span id="si-disc_type"></span></th>
-        <th>Legacy</th><th>AI</th>
-      </tr></thead>
-      <tbody id="allChargesTb"></tbody>
-    </table>
-    <div class="empty" id="tblEmpty" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No charges match filters</div></div>
-    <div class="tbl-foot">
-      <span id="tbl-sum" style="font-family:var(--mono)">$0.00</span>
-      <div class="pager" id="tbl-pager"></div>
+    <table><thead><tr>
+      <th onclick="setShipSort('order_number')">Order #</th>
+      <th onclick="setShipSort('carrier')">Carrier</th>
+      <th onclick="setShipSort('service_level')">Service</th>
+      <th onclick="setShipSort('ship_to_country')">Country</th>
+      <th onclick="setShipSort('ship_to_state')">State</th>
+      <th onclick="setShipSort('package_name')">Package</th>
+      <th onclick="setShipSort('package_weight')">Weight</th>
+      <th onclick="setShipSort('charge_amount')">Charge</th>
+      <th onclick="setShipSort('ship_date')">Ship Date</th>
+      <th>AI</th>
+    </tr></thead><tbody id="shipTb"></tbody></table>
+    <div class="empty" id="shipE" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No results</div></div>
+    <div class="tbl-foot"><span id="ship-sum">$0.00</span><div class="pager" id="ship-pager"></div></div>
+  </div>
+</div>
+
+<!-- ══ ORDER CHARGES TAB ══ -->
+<div class="tc" id="tc-orders">
+  <div class="flt-panel">
+    <div class="flt-hdr">
+      <span class="flt-title">// Filter · Order Charges</span>
+      <div style="display:flex;gap:6px">
+        <button class="vbtn vbtn-gray vbtn-sm" onclick="clearOrdFlt()">Clear</button>
+        <button class="vbtn vbtn-lime vbtn-sm" onclick="exportOrders()">Export CSV</button>
+      </div>
+    </div>
+    <div class="flt-row">
+      <div class="flt-grp"><div class="flt-lbl">Package Type</div><div class="flt-chips" id="oflt-pkg"><div class="chip on" onclick="setOFlt('pkg','ALL',this)">All</div></div></div>
+      <div class="flt-grp"><div class="flt-lbl">Carrier</div><div class="flt-chips" id="oflt-carrier"><div class="chip on" onclick="setOFlt('carrier','ALL',this)">All</div></div></div>
+      <div class="flt-grp"><div class="flt-lbl">Search</div><input class="flt-input" id="oflt-search" placeholder="CRA order #..." oninput="applyOrdFlt()" style="width:180px"></div>
     </div>
   </div>
+  <div class="tw">
+    <div class="tbl-ctrl">
+      <span style="font-size:10px;color:var(--text3)">Showing <span id="ord-count" style="color:var(--lime)">0</span> of <span id="ord-total" style="color:var(--text2)">0</span></span>
+    </div>
+    <table><thead><tr>
+      <th onclick="setOrdSort('order_number')">Order #</th>
+      <th onclick="setOrdSort('carrier')">Carrier</th>
+      <th onclick="setOrdSort('service_level')">Service</th>
+      <th onclick="setOrdSort('package_type')">Package</th>
+      <th>Dims</th>
+      <th onclick="setOrdSort('weight_value')">Weight</th>
+      <th onclick="setOrdSort('initial_pick_fee_amount')">Init Pick</th>
+      <th onclick="setOrdSort('additional_pick_fee_amount')">Add'l Pick</th>
+      <th>Recipient</th>
+      <th onclick="setOrdSort('ship_datetime')">Shipped</th>
+    </tr></thead><tbody id="ordTb"></tbody></table>
+    <div class="empty" id="ordE" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No results</div></div>
+    <div class="tbl-foot"><span id="ord-sum">$0.00 pick fees</span><div class="pager" id="ord-pager"></div></div>
+  </div>
 </div>
 
-<!-- FLAGS -->
-<div class="tc" id="tc-flags">
+<!-- ══ INVOICE CHARGES TAB ══ -->
+<div class="tc" id="tc-invoice">
   <div style="background:var(--panel2);border:1px solid var(--border2);padding:8px 14px;margin-bottom:12px;font-size:10px;color:var(--text3)">
-    Flags from: <span id="flagsSource" style="color:var(--lime)">All loaded periods</span>
-    <span style="margin:0 8px;color:var(--border3)">|</span>
-    DT = Discrepancy Type · CT = Charge Type · carrier/service/country are filter dimensions
-  </div>
-  <div class="flt-chips" id="fltChips" style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:4px">
-    <div class="chip on" onclick="fltFlags('ALL',this)">All Flagged</div>
-    <div class="chip" onclick="fltFlags('DUP',this)">DUP · Duplicate</div>
-    <div class="chip" onclick="fltFlags('RATE',this)">RATE · Rate Error</div>
-    <div class="chip" onclick="fltFlags('DIM',this)">DIM · Dim Weight</div>
-    <div class="chip" onclick="fltFlags('ACC',this)">ACC · Accessorial</div>
-    <div class="chip" onclick="fltFlags('SVC-FAIL',this)">SVC-FAIL</div>
-    <div class="chip" onclick="fltFlags('SVC-MISMATCH',this)">SVC-MISMATCH</div>
-    <div class="chip" onclick="fltFlags('TAX-DUTY',this)">TAX-DUTY</div>
-    <div class="chip" onclick="fltFlags('DATA',this)">DATA · No Order</div>
-    <div class="chip" onclick="fltFlags('UNAUTH',this)">UNAUTH</div>
-    <div class="chip" onclick="fltFlags('OTHER',this)">OTHER</div>
+    Monthly overhead — storage, account management, supplies, hourly fees. Credits shown as <span style="color:var(--teal)">negative / teal</span>.
   </div>
   <div class="tw">
-    <table><thead><tr><th>Order #</th><th>Period</th><th>Carrier</th><th>Service</th><th>Cty</th><th>Amount</th><th>DT</th><th>CT</th><th>Legacy CAT</th><th>AI Explanation</th><th></th></tr></thead>
-    <tbody id="flagsTb"></tbody></table>
-    <div class="empty" id="flagsE" style="display:none"><div class="empty-i">✓</div><div class="empty-t">No flags for this filter</div></div>
+    <table><thead><tr>
+      <th onclick="setInvSort('date_from')">Period</th>
+      <th onclick="setInvSort('charge_on_invoice')">Type</th>
+      <th onclick="setInvSort('amount')">Amount</th>
+      <th onclick="setInvSort('quantity')">Qty</th>
+      <th>Description</th>
+      <th>AI</th>
+    </tr></thead><tbody id="invTb"></tbody></table>
+    <div class="empty" id="invE" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No invoice charges</div></div>
+    <div class="tbl-foot"><span id="inv-sum">$0.00</span><div class="pager" id="inv-pager"></div></div>
   </div>
 </div>
 
-<!-- CREDITS -->
+<!-- ══ CREDITS TAB ══ -->
 <div class="tc" id="tc-credits">
+  <div class="cpanel" style="margin-bottom:16px">
+    <div class="ph"><div class="pt2">Auto-Detected Credits from Invoice Data</div><div class="ph-hint" id="autoCredHint">scanning...</div></div>
+    <div id="autoCredList" style="padding:12px 16px">
+      <div class="empty" id="autoCredE"><div class="empty-i">◈</div><div class="empty-t">No credits in current period</div></div>
+    </div>
+  </div>
+  <div class="cpanel" id="matchPanel" style="margin-bottom:16px;display:none">
+    <div class="ph"><div class="pt2">Potential Matches — Review Required</div><div class="ph-hint">invoice credits that may match logged claims</div></div>
+    <div id="matchList" style="padding:12px 16px"></div>
+  </div>
+  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+    <div class="mc am"><div class="ml">Total Exposure</div><div class="mv magenta" id="cr-exp">$0</div><div class="ms">all claims filed</div></div>
+    <div class="mc al"><div class="ml">$ Recovered</div><div class="mv lime" id="cr-rec">$0</div><div class="ms">approved + resolved</div></div>
+    <div class="mc ap"><div class="ml">Recovery Rate</div><div class="mv purple" id="cr-rate">0%</div><div class="ms">of exposure filed</div></div>
+    <div class="mc ac"><div class="ml">Open Claims</div><div class="mv cyan" id="cr-open">0</div><div class="ms">pending + appealed</div></div>
+  </div>
   <div class="cfp">
     <div style="font-size:9px;letter-spacing:.15em;color:var(--text3);text-transform:uppercase;margin-bottom:12px">// Log Credit Claim</div>
     <div class="fg">
       <div><label>Order #</label><input id="cr-o" placeholder="CRA######"></div>
       <div><label>Carrier</label><select id="cr-c"><option value="">Select</option><option>iDrive</option><option>FlavorCloud</option><option>UPS</option><option>FedEx</option><option>DHL</option><option>OnTrac</option><option>Veho</option><option>USPS</option><option>HLC</option></select></div>
       <div><label>Amount ($)</label><input type="number" id="cr-a" placeholder="0.00" step="0.01"></div>
-      <div><label>Discrepancy Type</label>
-        <select id="cr-k"><option value="">Select DT</option><option value="DUP">DUP · Duplicate</option><option value="RATE">RATE · Rate Error</option><option value="DIM">DIM · Dim Weight</option><option value="ACC">ACC · Accessorial</option><option value="SVC-FAIL">SVC-FAIL</option><option value="SVC-MISMATCH">SVC-MISMATCH</option><option value="TAX-DUTY">TAX-DUTY</option><option value="DATA">DATA · No Order</option><option value="UNAUTH">UNAUTH</option><option value="OTHER">OTHER</option></select>
-      </div>
-    </div>
-    <div class="fg">
-      <div><label>Contact</label><input id="cr-cn" placeholder="Name"></div>
-      <div><label>Email</label><input type="email" id="cr-em" placeholder="claims@carrier.com"></div>
-      <div><label>Invoice Period</label><input id="cr-p" placeholder="Apr 2–8 2026"></div>
       <div><label>Status</label><select id="cr-st"><option value="pending">Pending</option><option value="approved">Approved</option><option value="denied">Denied</option><option value="appealed">Appealed</option><option value="resolved">Resolved</option></select></div>
     </div>
-    <label style="display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Notes</label>
-    <textarea class="full-input" id="cr-n" placeholder="Context, references, next steps..."></textarea>
+    <div class="fg">
+      <div><label>Contact / Account</label><input id="cr-cn" placeholder="Name or account"></div>
+      <div><label>Email</label><input type="email" id="cr-em" placeholder="claims@carrier.com"></div>
+      <div><label>Invoice Period</label><input id="cr-p" placeholder="Apr 2026"></div>
+      <div><label>Linked Invoice ID</label><input id="cr-lid" placeholder="Auto-filled from match"></div>
+    </div>
+    <label style="display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Notes / Keywords</label>
+    <textarea class="full-input" id="cr-n" placeholder="Context, references, keywords for matching (e.g. Turkey, KOHEZI, wholesale)..."></textarea>
     <div class="fa"><button class="btn-p" onclick="saveClaim()">Save Claim</button><button class="btn-s" onclick="clearClaim()">Clear</button></div>
-  </div>
-  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
-    <div class="mc am"><div class="ml">Total Exposure</div><div class="mv magenta" id="cr-exp">$0</div><div class="ms">all claims</div></div>
-    <div class="mc al"><div class="ml">$ Recovered</div><div class="mv lime" id="cr-rec">$0</div><div class="ms">approved + resolved</div></div>
-    <div class="mc ap"><div class="ml">Recovery Rate</div><div class="mv purple" id="cr-rate">0%</div><div class="ms">of exposure</div></div>
-    <div class="mc ac"><div class="ml">Open Claims</div><div class="mv cyan" id="cr-open">0</div><div class="ms">pending + appealed</div></div>
   </div>
   <div class="tw">
     <div class="ph"><div class="pt2">Claims Log</div><span id="crTotal" style="font-size:10px;color:var(--text3)">$0.00</span></div>
-    <table><thead><tr><th>Order #</th><th>Period</th><th>Carrier</th><th>DT</th><th>Amount</th><th>Contact</th><th>Status</th><th>Notes</th><th>By</th><th></th></tr></thead>
+    <table><thead><tr><th>Order #</th><th>Period</th><th>Carrier</th><th>Amount</th><th>Contact</th><th>Status</th><th>Match</th><th>Notes</th><th>By</th><th>AI</th><th></th></tr></thead>
     <tbody id="crTb"></tbody></table>
-    <div class="empty" id="crE"><div class="empty-i">◈</div><div class="empty-t">No claims yet</div><div class="empty-s">Syncs live via Supabase</div></div>
+    <div class="empty" id="crE"><div class="empty-i">◈</div><div class="empty-t">No claims yet</div></div>
   </div>
 </div>
 
-<!-- TRENDS -->
-<div class="tc" id="tc-trends">
-  <div class="empty" id="trE"><div class="empty-i">◈</div><div class="empty-t">Upload 2+ invoices to see trends</div></div>
-  <div id="trC" style="display:none">
-    <div class="trend-grid">
-      <div class="cpanel cw"><div class="ph"><div class="pt2">Cost by Period — Shipping vs Pick/Pack</div></div><div class="cb"><canvas id="cvPeriod" style="width:100%;height:200px"></canvas></div></div>
-      <div class="cpanel"><div class="ph"><div class="pt2">Avg Cost / Shipment by Carrier</div></div><div class="cb"><canvas id="cvAvg" style="width:100%;height:200px"></canvas></div></div>
-      <div class="cpanel"><div class="ph"><div class="pt2">Flagged % by Period</div></div><div class="cb"><canvas id="cvFcPct" style="width:100%;height:200px"></canvas></div></div>
+<!-- ══ COMPARE TAB ══ -->
+<div class="tc" id="tc-compare">
+  <div style="background:var(--panel2);border:1px solid var(--border2);padding:8px 14px;margin-bottom:14px;font-size:10px;color:var(--text3)">
+    Compare any two date ranges, quarters, or invoice periods against each other. Use the controls below — each side is fully independent.
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+    <!-- Side A -->
+    <div class="cmp-section">
+      <div class="cmp-section-title">// Period A <span class="cmp-range-label cmp-range-a">LIME</span></div>
+      <div class="cmp-range-row" style="margin-bottom:8px">
+        <select class="mono-sel" id="cmp-a-q" onchange="setCmpQ('a')" style="color:var(--lime)">
+          <option value="">— Select Quarter —</option>
+          <option value="Q4-2025">Q4 2025</option>
+          <option value="Q1-2026">Q1 2026</option>
+          <option value="Q2-2026">Q2 2026</option>
+          <option value="Q3-2026">Q3 2026</option>
+          <option value="Q4-2026">Q4 2026</option>
+          <option value="ALL">All Time</option>
+        </select>
+        <span style="font-size:10px;color:var(--text3)">or custom:</span>
+      </div>
+      <div class="date-inputs">
+        <input type="date" id="cmp-a-from" style="border-color:rgba(184,255,60,.3)">
+        <span style="color:var(--text3);font-size:10px">→</span>
+        <input type="date" id="cmp-a-to" style="border-color:rgba(184,255,60,.3)">
+      </div>
+    </div>
+    <!-- Side B -->
+    <div class="cmp-section">
+      <div class="cmp-section-title">// Period B <span class="cmp-range-label cmp-range-b">CYAN</span></div>
+      <div class="cmp-range-row" style="margin-bottom:8px">
+        <select class="mono-sel" id="cmp-b-q" onchange="setCmpQ('b')" style="color:var(--cyan)">
+          <option value="">— Select Quarter —</option>
+          <option value="Q4-2025">Q4 2025</option>
+          <option value="Q1-2026">Q1 2026</option>
+          <option value="Q2-2026">Q2 2026</option>
+          <option value="Q3-2026">Q3 2026</option>
+          <option value="Q4-2026">Q4 2026</option>
+          <option value="ALL">All Time</option>
+        </select>
+        <span style="font-size:10px;color:var(--text3)">or custom:</span>
+      </div>
+      <div class="date-inputs">
+        <input type="date" id="cmp-b-from" style="border-color:rgba(0,229,255,.3)">
+        <span style="color:var(--text3);font-size:10px">→</span>
+        <input type="date" id="cmp-b-to" style="border-color:rgba(0,229,255,.3)">
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+    <button class="vbtn vbtn-lime" onclick="runCompare()">Run Comparison</button>
+    <button class="vbtn vbtn-gray" id="cmpAiBtn" onclick="runCompareAI()" style="display:none">✦ AI Analysis</button>
+    <span style="font-size:10px;color:var(--text3)" id="cmpAiModel"></span>
+  </div>
+  <div id="cmpResults">
+    <div class="empty" id="cmpE"><div class="empty-i">◈</div><div class="empty-t">Set both periods above and click Run Comparison</div></div>
+  </div>
+  <div id="cmpAiResult" style="display:none;margin-top:14px">
+    <div class="ai-panel">
+      <div class="ai-panel-hdr"><div class="ai-panel-title">Comparison Analysis</div></div>
+      <div class="ai-body"><div class="ai-narrative" id="cmpAiText"></div></div>
     </div>
   </div>
 </div>
 
-<!-- HISTORY -->
-<div class="tc" id="tc-history">
-  <div class="hist-controls">
-    <button class="vbtn vbtn-gray" onclick="selectAllHist()">Select All</button>
-    <button class="vbtn vbtn-gray" onclick="deselectAllHist()">Deselect All</button>
-    <span class="sel-count"><span id="selCount">0</span> selected</span>
-    <div class="hist-actions">
-      <button class="vbtn vbtn-lime" onclick="loadSelected('aggregate')">Load Aggregate</button>
-      <button class="vbtn vbtn-cyan" onclick="loadSelected('compare')">Compare Selected</button>
+<!-- ══ SEARCH TAB ══ -->
+<div class="tc" id="tc-search">
+  <div style="background:var(--panel2);border:1px solid var(--border2);padding:16px;margin-bottom:14px">
+    <div style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">// Universal Search — all tables · all periods</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="flt-input" id="srch-q" placeholder="Order # (CRA146835), tracking number, city, country, keyword (Turkey, KOHEZI)..." style="flex:1;font-size:12px;padding:8px 12px" onkeydown="if(event.key==='Enter')runSearch()">
+      <button class="go-btn" style="padding:8px 20px;font-size:11px" onclick="runSearch()">Search</button>
     </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:6px">Searches: shipping charges · order charges · invoice charges · credit claims · <strong style="color:var(--amber)">not period-filtered</strong></div>
   </div>
-  <div class="tw"><div id="histList"></div><div class="empty" id="histE"><div class="empty-i">◈</div><div class="empty-t">No invoice history</div></div></div>
+  <div id="srchResults">
+    <div class="empty" id="srchE"><div class="empty-i">◈</div><div class="empty-t">Enter a search query above</div><div class="empty-s">Try a CRA order number, tracking number, or keyword</div></div>
+  </div>
 </div>
 
 </div><!-- /main -->
 <div class="toast" id="toast"></div>
+
 <script>
 var SB_URL='https://qcpvmyholfiymflrnaav.supabase.co';
 var SB_KEY='sb_publishable_UTpSY6b8NYryifzSVwX4_A_TWlTG2Mf';
+var OUTLIER_SHIP_THRESHOLD=300;
+var OUTLIER_PICK_THRESHOLD=10;
+var sb,aKey='';
+var shipData=[],ordData=[],invData=[],creditData=[];
+var shipFilt=[],ordFilt=[];
+var shipPage=1,ordPage=1,invPage=1,PAGE=100;
+var shipSort='charge_amount',shipDir=-1;
+var ordSort='ship_datetime',ordDir=-1;
+var invSort='date_from',invDir=-1;
+var sfCarrier='ALL',sfCountry='ALL';
+var ofPkg='ALL',ofCarrier='ALL';
+var activePeriod={type:'Q',q:'Q2-2026',from:'2026-04-01',to:'2026-06-30'};
+var cmpDataA=null,cmpDataB=null;
 
-// ── 3-AXIS TAXONOMY ───────────────────────────────────────────────────────────
-var DT={
-  DUP:        {label:'Duplicate Charge',              badge:'bm', action:'File credit claim immediately — confirmed duplicate billing'},
-  RATE:       {label:'Rate Discrepancy',               badge:'ba', action:'Compare to contracted rate card; file correction if >$1 difference'},
-  DIM:        {label:'Dimensional / Oversize Weight',  badge:'ba', action:'Verify package dims — request dim correction if mislabeled'},
-  ACC:        {label:'Accessorial Fee',                badge:'ba', action:'Identify type; verify eligibility (address corr, residential surcharge, etc.)'},
-  'SVC-FAIL': {label:'Service Failure / Refund Eligible',badge:'bm',action:'Check guarantee window; file on-time refund claim with carrier'},
-  'SVC-MISMATCH':{label:'Wrong Carrier or Service',    badge:'bc', action:'Fix service mapping in Packiyo — escalate to Charlie at HLC'},
-  'TAX-DUTY': {label:'Duty / Tax Error',               badge:'bp', action:'Review customs entry; verify HS code and declared value'},
-  DATA:       {label:'Missing or Bad Data',            badge:'bt', action:'Investigate with HLC — cannot reconcile to any Shopify/BP order'},
-  UNAUTH:     {label:'Unauthorized Charge',            badge:'bm', action:'Do not pay — dispute immediately with carrier account manager'},
-  OTHER:      {label:'Other Discrepancy',              badge:'bg', action:'Requires manual review'},
-  INFO:       {label:'Informational — No Flag',        badge:'bg', action:'No action required'}
+var QUARTERS={
+  'Q4-2025':{from:'2025-10-01',to:'2025-12-31'},
+  'Q1-2026':{from:'2026-01-01',to:'2026-03-31'},
+  'Q2-2026':{from:'2026-04-01',to:'2026-06-30'},
+  'Q3-2026':{from:'2026-07-01',to:'2026-09-30'},
+  'Q4-2026':{from:'2026-10-01',to:'2026-12-31'},
+  'Q1-2027':{from:'2027-01-01',to:'2027-03-31'},
+  'ALL':{from:'2020-01-01',to:'2030-12-31'}
 };
-
-// Legacy CAT → new DT+CT mapping (for backward compat display)
-var CAT_MAP={
-  'CAT-01':{dt:'DUP',      ct:'BASE_RATE'},
-  'CAT-02':{dt:'SVC-MISMATCH',ct:'FLAVORCLOUD'},
-  'CAT-03':{dt:'DATA',     ct:'UNKNOWN'},
-  'CAT-04':{dt:'SVC-MISMATCH',ct:'FLAVORCLOUD'},
-  'CAT-05':{dt:'RATE',     ct:'FLAVORCLOUD'},
-  'CAT-06':{dt:'SVC-MISMATCH',ct:'UNKNOWN'},
-  'CAT-07':{dt:'SVC-MISMATCH',ct:'MEDIA_MAIL'},
-  'CAT-08':{dt:'INFO',     ct:'INITIAL_PICK'}
-};
-
-var sb,allUploads=[],selectedUploadIds=[],activeCharges=[];
-var curFlt='ALL',viewMode='aggregate',aKey='';
-var tFiltered=[],tPage=1,tPageSize=50,tSortField='charge_amount',tSortDir=-1;
-var fDT=['ALL'],fCarrier='ALL',fCT='ALL',fCountry='ALL';
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function showLoad(m,p){document.getElementById('loadOverlay').classList.add('show');document.getElementById('loadSub').textContent=m;document.getElementById('loadBar').style.width=p+'%';}
 function hideLoad(){document.getElementById('loadOverlay').classList.remove('show');}
 
 async function init(){
-  showLoad('Connecting to Supabase...',20);
+  showLoad('Connecting to Supabase...',15);
   try{
     sb=window.supabase.createClient(SB_URL,SB_KEY);
-    var t=await sb.from('invoice_uploads').select('id').limit(1);
-    if(t.error) throw t.error;
-    setSt('live','Connected · Supabase');
-    showLoad('Loading history...',55);
-    await loadHistory();
-    showLoad('Loading charges...',75);
-    await loadAllCharges();
-    showLoad('Loading credits...',90);
-    await loadCredits();
-    showLoad('Loading AI config...',95);
-    try{
-      var cfg=await sb.from('app_config').select('value').eq('key','anthropic_api_key').single();
-      if(cfg.data&&cfg.data.value)aKey=cfg.data.value;
-    }catch(e2){console.warn('Could not load AI key from config:',e2);}
+    var t=await sb.from('rails_shipping_charges').select('id').limit(1);
+    if(t.error)throw t.error;
+    setSt('live','Connected · Supabase Live');
+    showLoad('Loading AI config...',30);
+    try{var cfg=await sb.from('app_config').select('value').eq('key','anthropic_api_key').single();if(cfg.data&&cfg.data.value){aKey=cfg.data.value;document.getElementById('aiModelBadge').textContent='Sonnet 4 · Haiku fallback';}}catch(e){}
+    showLoad('Loading period data...',50);
+    await loadAll();
     showLoad('Ready!',100);
-    setTimeout(hideLoad,500);
+    setTimeout(hideLoad,400);
     sb.channel('cr').on('postgres_changes',{event:'*',schema:'public',table:'credit_log'},function(){loadCredits();}).subscribe();
-  }catch(e){setSt('err','DB error');console.error(e);hideLoad();}
+  }catch(e){
+    setSt('err','Connection failed');
+    console.error(e);
+    hideLoad();
+    toast('Supabase error: '+e.message,'err');
+  }
 }
 
 function setSt(s,m){
   var p=document.getElementById('dbP'),t=document.getElementById('dbS');
   p.className='pulse '+(s==='live'?'live':'err');
-  t.textContent=m;t.style.color=s==='live'?'var(--lime)':'var(--magenta)';
+  t.textContent=m;
+  t.style.color=s==='live'?'var(--lime)':'var(--magenta)';
 }
 
-async function loadAllCharges(){
-  if(!sb||!allUploads.length){renderAggregate([],'No invoices yet');return;}
-  var ids=allUploads.map(function(u){return u.id;});
-  selectedUploadIds=ids.slice();updateSelCount();
-  var charges=[];
-  for(var i=0;i<ids.length;i++){var r=await sb.from('invoice_charges').select('*').eq('upload_id',ids[i]);if(r.data)charges=charges.concat(r.data);}
-  activeCharges=charges;
-  // Backfill disc_type/charge_type from cat_code for legacy records
-  for(var i=0;i<activeCharges.length;i++){
-    var c=activeCharges[i];
-    if(!c.disc_type&&c.cat_code&&CAT_MAP[c.cat_code]){c.disc_type=CAT_MAP[c.cat_code].dt;c.charge_type=c.charge_type||CAT_MAP[c.cat_code].ct;}
-    if(!c.disc_type) c.disc_type=c.is_flagged?'OTHER':'INFO';
-    if(!c.charge_type) c.charge_type='BASE_RATE';
+async function loadAll(){
+  await Promise.all([loadShipping(),loadOrders(),loadInvoice(),loadCredits()]);
+  renderOverview();
+  applyShipFlt();
+  applyOrdFlt();
+  renderInvoice();
+  detectCredits();
+  runOutlierCheck();
+  // Reset AI panel
+  document.getElementById('aiEmpty').style.display='block';
+  document.getElementById('aiNarrative').style.display='none';
+  document.getElementById('aiNarrative').textContent='';
+}
+
+// ── PERIOD ────────────────────────────────────────────────────────────────────
+function setQ(q){
+  activePeriod={type:'Q',q:q,from:QUARTERS[q].from,to:QUARTERS[q].to};
+  setText('periodStatus','Loading '+q+'...');
+  loadAll();
+}
+
+function applyCustomRange(){
+  var f=document.getElementById('d-from').value,t=document.getElementById('d-to').value;
+  if(!f||!t){toast('Select both dates','warn');return;}
+  document.getElementById('qsel').value='';
+  activePeriod={type:'custom',from:f,to:t};
+  loadAll();
+}
+
+function periodLabel(){
+  if(activePeriod.q==='ALL')return'All Time';
+  if(activePeriod.type==='Q')return activePeriod.q.replace('-',' ');
+  return activePeriod.from+' → '+activePeriod.to;
+}
+
+function buildQuery(table){
+  var q=sb.from(table).select('*');
+  if(activePeriod.q!=='ALL'){
+    q=q.gte('date_from',activePeriod.from).lte('date_to',activePeriod.to);
   }
-  buildDynamicChips();
-  renderAggregate(charges,'All '+allUploads.length+' period'+(allUploads.length!==1?'s':''));
-  renderFlags(charges);renderTrends();applyFilters();
+  return q;
 }
 
-function buildDynamicChips(){
-  var cars={},cts={};
-  for(var i=0;i<activeCharges.length;i++){if(activeCharges[i].carrier)cars[activeCharges[i].carrier]=true;cts[activeCharges[i].charge_type||'UNKNOWN']=true;}
-  var cEl=document.getElementById('flt-carrier');
-  var h='<div class="chip on" onclick="setSingle(\'carrier\',\'ALL\',this)">All</div>';
-  Object.keys(cars).sort().forEach(function(c){h+='<div class="chip" onclick="setSingle(\'carrier\',\''+esc(c)+'\',this)">'+c+'</div>';});
-  cEl.innerHTML=h;
-  var ctEl=document.getElementById('flt-ct');
-  var h2='<div class="chip on" onclick="setSingle(\'ct\',\'ALL\',this)">All</div>';
-  Object.keys(cts).sort().forEach(function(c){h2+='<div class="chip" onclick="setSingle(\'ct\',\''+esc(c)+'\',this)">'+c+'</div>';});
-  ctEl.innerHTML=h2;
+// ── DATA LOADERS ──────────────────────────────────────────────────────────────
+async function loadShipping(){
+  var r=await buildQuery('rails_shipping_charges').order('ship_date',{ascending:false});
+  shipData=r.data||[];
+  setText('cnt-s',shipData.length.toLocaleString());
+  buildShipChips();
 }
-
-// ── FILE HANDLING ─────────────────────────────────────────────────────────────
-function handleDrop(e){e.preventDefault();document.getElementById('miniDz').classList.remove('drag');processFiles(Array.prototype.slice.call(e.dataTransfer.files));}
-function handleFile(e){var f=Array.prototype.slice.call(e.target.files);e.target.value='';processFiles(f);}
-function processFiles(files){
-  if(files.length===1){procFile(files[0]);return;}
-  toast('Processing '+files.length+' invoices...','info');
-  var i=0;function next(){if(i>=files.length){toast('All '+files.length+' uploaded!','ok');loadHistory().then(function(){loadAllCharges();});return;}var f=files[i++];toast('Uploading '+i+'/'+files.length+': '+f.name.slice(0,30),'info');procFileSilent(f,next);}
-  next();
+async function loadOrders(){
+  var r=await buildQuery('rails_order_charges').order('ship_datetime',{ascending:false});
+  ordData=r.data||[];
+  setText('cnt-o',ordData.length.toLocaleString());
+  buildOrdChips();
 }
-
-function procFileSilent(file,cb){
-  var user=document.getElementById('usel').value;
-  var r=new FileReader();
-  r.onload=function(e){
-    try{
-      var wb=XLSX.read(e.target.result,{type:'array'});
-      var sn=null;for(var i=0;i<wb.SheetNames.length;i++){if(wb.SheetNames[i].toLowerCase().indexOf('detail')>=0){sn=wb.SheetNames[i];break;}}
-      if(!sn)sn=wb.SheetNames[wb.SheetNames.length-1];
-      var raw=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:''});
-      if(!raw.length){if(cb)cb();return;}
-      var charges=parseCharges(raw);if(!charges.length){if(cb)cb();return;}
-      dupCheck(charges);
-      var period=detectPeriod(file.name,raw);
-      var cost=0,fc=0;for(var i=0;i<charges.length;i++){cost+=charges[i].charge_amount;if(charges[i].is_flagged)fc++;}
-      sb.from('invoice_uploads').insert({uploaded_by:user,invoice_period:period,total_charges:charges.length,total_cost:cost,flagged_charges:fc}).select().single().then(function(res){
-        if(res.error){if(cb)cb();return;}
-        var uid=res.data.id,rows=[],batches=[];
-        for(var i=0;i<charges.length;i++)rows.push(Object.assign({},charges[i],{upload_id:uid,invoice_period:period}));
-        for(var i=0;i<rows.length;i+=100)batches.push(rows.slice(i,i+100));
-        var bi=0;function nb(){if(bi>=batches.length){if(cb)cb();return;}sb.from('invoice_charges').insert(batches[bi++]).then(nb);}nb();
-      });
-    }catch(err){console.error(err);if(cb)cb();}
-  };r.readAsArrayBuffer(file);
-}
-
-function procFile(file){
-  var user=document.getElementById('usel').value;
-  prog('Reading...',10);
-  var r=new FileReader();
-  r.onload=function(e){
-    try{
-      prog('Parsing XLSX...',25);
-      var wb=XLSX.read(e.target.result,{type:'array'});
-      var sn=null;for(var i=0;i<wb.SheetNames.length;i++){if(wb.SheetNames[i].toLowerCase().indexOf('detail')>=0){sn=wb.SheetNames[i];break;}}
-      if(!sn)sn=wb.SheetNames[wb.SheetNames.length-1];
-      var raw=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:''});
-      if(!raw.length){toast('No data','err');hideProg();return;}
-      prog('Classifying...',45);
-      var charges=parseCharges(raw);
-      if(!charges.length){toast('No recognizable charges. Upload Rails Shipping Charges Detail or Pick Fee Detail.','err');hideProg();return;}
-      prog('Duplicate check...',62);
-      var hasDups=dupCheck(charges);
-      prog('Saving...',78);
-      var period=detectPeriod(file.name,raw);
-      var cost=0,fc=0;for(var i=0;i<charges.length;i++){cost+=charges[i].charge_amount;if(charges[i].is_flagged)fc++;}
-      sb.from('invoice_uploads').insert({uploaded_by:user,invoice_period:period,total_charges:charges.length,total_cost:cost,flagged_charges:fc}).select().single().then(function(res){
-        if(res.error){toast('Save error: '+res.error.message,'err');hideProg();return;}
-        var uid=res.data.id,rows=[],batches=[];
-        for(var i=0;i<charges.length;i++)rows.push(Object.assign({},charges[i],{upload_id:uid,invoice_period:period}));
-        for(var i=0;i<rows.length;i+=100)batches.push(rows.slice(i,i+100));
-        var bi=0;
-        function nb(){if(bi>=batches.length){prog('Done!',100);toast(charges.length+' charges · '+fc+' flagged','ok');if(hasDups)document.getElementById('dupAlert').classList.add('show');setTimeout(hideProg,800);loadHistory().then(function(){loadAllCharges();});return;}sb.from('invoice_charges').insert(batches[bi++]).then(nb);}
-        nb();
-      });
-    }catch(err){console.error(err);toast('Parse error: '+err.message,'err');hideProg();}
-  };r.readAsArrayBuffer(file);
-}
-
-function dupCheck(charges){
-  var m={};for(var i=0;i<activeCharges.length;i++){var c=activeCharges[i];m[((c.order_number||'').toLowerCase())+'_'+c.charge_amount+'_'+((c.carrier||'').toLowerCase())]=true;}
-  var found=false;
-  for(var i=0;i<charges.length;i++){var k=((charges[i].order_number||'').toLowerCase())+'_'+charges[i].charge_amount+'_'+((charges[i].carrier||'').toLowerCase());if(m[k]){charges[i].is_duplicate=true;charges[i].disc_type='DUP';charges[i].disc_label='Duplicate Charge';charges[i].cat_code='CAT-01';charges[i].cat_label='Cross-Period Duplicate';charges[i].is_flagged=true;found=true;}}
-  return found;
-}
-
-// ── PARSE & CLASSIFY ──────────────────────────────────────────────────────────
-function isPickFile(rows){if(!rows.length)return false;var k=Object.keys(rows[0]).join('|').toLowerCase();return k.indexOf('initial pick fee')>=0||k.indexOf('additional pick fee')>=0;}
-
-function parseCharges(rows){
-  var result=[];
-  if(isPickFile(rows)){
-    for(var i=0;i<rows.length;i++){
-      var row=rows[i],rk=Object.keys(row);
-      var g=function(){for(var n=0;n<arguments.length;n++){var nm=arguments[n];for(var j=0;j<rk.length;j++){if(rk[j].toLowerCase()===nm.toLowerCase()&&row[rk[j]]!==null&&row[rk[j]]!==undefined&&row[rk[j]]!=='')return String(row[rk[j]]);}}return '';};
-      var gn=function(){var s=g.apply(null,arguments);return parseFloat(s.replace(/[^0-9.-]/g,''))||0;};
-      var ord=g('Order Number').replace(/^#/,'')||null;
-      var cty=g('Ship Recipient Address Country')||'US';
-      var zip=g('Ship Recipient Address Postal Code');
-      var wt=gn('Weight Value');var pkg=g('Package Type Name');
-      var iA=gn('Initial Pick Fee - Amount ($)'),iQ=gn('Initial Pick Fee - Quantity')||1;
-      var aA=gn('Additional Pick Fee - Amount ($)'),aQ=gn('Additional Pick Fee - Quantity')||1;
-      if(iA>0)result.push({order_number:ord,carrier:'HLC',service_type:'Initial Pick Fee',charge_amount:+(iA*iQ).toFixed(2),charge_description:'Initial Pick Fee',destination_country:cty,destination_zip:zip,weight:wt,charge_type:'INITIAL_PICK',disc_type:'INFO',disc_label:'Informational',cat_code:'CAT-08',cat_label:'Pick/Pack Fee',is_flagged:false,is_duplicate:false,claude_explanation:null});
-      if(aA>0)result.push({order_number:ord,carrier:'HLC',service_type:'Additional Pick Fee',charge_amount:+(aA*aQ).toFixed(2),charge_description:'Additional Pick Fee',destination_country:cty,destination_zip:zip,weight:wt,charge_type:'ADD_PICK',disc_type:'INFO',disc_label:'Informational',cat_code:'CAT-08',cat_label:'Pick/Pack Fee',is_flagged:false,is_duplicate:false,claude_explanation:null});
-    }
-    return result;
-  }
-  for(var i=0;i<rows.length;i++){
-    var row=rows[i],rk=Object.keys(row);
-    var get=function(){for(var n=0;n<arguments.length;n++){var name=arguments[n],k=null;for(var j=0;j<rk.length;j++){if(rk[j]===name){k=rk[j];break;}}if(!k){for(var j=0;j<rk.length;j++){if(rk[j].toLowerCase()===name.toLowerCase()){k=rk[j];break;}}}if(k!==null&&row[k]!==null&&row[k]!==undefined&&row[k]!=='')return String(row[k]);}return '';};
-    var getN=function(){var s=get.apply(null,arguments);return parseFloat(s.replace(/[^0-9.-]/g,''))||0;};
-    var ord=get('Order Number','order_number');
-    var car=get('Carrier','carrier');
-    var svc=get('Service Level','service_level','Service Level Name');
-    var amt=getN('Charge Amount ($)','charge_amount');
-    var cty=get('Ship To Country','ship_to_country');
-    var zip=get('Ship To Zip','ship_to_zip');
-    var wt=getN('Package Weight','package_weight');
-    if(amt<=0)continue;
-    var cls=classify(ord,car,svc,amt,cty);
-    result.push({order_number:ord.replace(/^#/,'')||null,carrier:car||'Unknown',service_type:svc,charge_amount:amt,charge_description:svc,destination_country:cty,destination_zip:zip,weight:wt,charge_type:cls.charge_type,disc_type:cls.disc_type,disc_label:cls.disc_label,cat_code:cls.cat_code,cat_label:cls.cat_label,is_flagged:cls.is_flagged,is_duplicate:false,claude_explanation:null});
-  }
-  return result;
-}
-
-function classify(ord,car,svc,amt,cty){
-  var sv=(svc||'').toLowerCase().trim(),ca=(car||'').toLowerCase(),or=(ord||'').toString().trim();
-  var isIntl=cty&&cty!=='US'&&cty!=='United States'&&cty!=='';
-  var isFc=ca.indexOf('flavorcloud')>=0||ca.indexOf('flavor')>=0;
-  var isMO=or.toUpperCase().indexOf('MO-')===0;
-  var noOrd=!or||or==='nan'||or==='null';
-
-  // Axis 2: Charge Type
-  var ct='BASE_RATE';
-  if(sv.indexOf('pick fee')>=0||sv.indexOf('initial pick')>=0)ct='INITIAL_PICK';
-  else if(sv.indexOf('additional pick')>=0)ct='ADD_PICK';
-  else if(sv.indexOf('fuel')>=0)ct='FUEL';
-  else if(sv.indexOf('residential')>=0)ct='RESIDENTIAL';
-  else if(sv.indexOf('signature')>=0)ct='SIGNATURE';
-  else if(sv.indexOf('address correction')>=0||sv.indexOf('address corr')>=0)ct='ADDRESS_CORR';
-  else if(sv.indexOf('dimensional')>=0||sv.indexOf('dim weight')>=0)ct='DIM_WEIGHT';
-  else if(sv.indexOf('oversize')>=0||sv.indexOf('overweight')>=0||sv.indexOf('large package')>=0)ct='OVERSIZE';
-  else if(sv.indexOf('remote')>=0||sv.indexOf('delivery area')>=0)ct='REMOTE';
-  else if(sv.indexOf('duty')>=0||sv.indexOf('customs')>=0||sv.indexOf('brokerage')>=0)ct='CUSTOMS_DUTY';
-  else if(sv.indexOf('insurance')>=0||sv.indexOf('declared value')>=0)ct='INSURANCE';
-  else if(sv.indexOf('return')>=0)ct='RETURN';
-  else if(sv.indexOf('media mail')>=0)ct='MEDIA_MAIL';
-  else if(isFc&&isIntl)ct='FLAVORCLOUD';
-  else if(sv==='service mapping not present'||sv==='')ct='UNKNOWN';
-
-  // Axis 1: Discrepancy Type — in priority order
-  var dt='INFO';
-  if(sv==='service mapping not present')dt='SVC-MISMATCH';
-  else if(sv.indexOf('media mail')>=0)dt='SVC-MISMATCH';
-  else if(ct==='ADDRESS_CORR')dt='ACC';
-  else if(ct==='DIM_WEIGHT'||ct==='OVERSIZE')dt='DIM';
-  else if(isMO&&isFc)dt='SVC-MISMATCH';
-  else if(isFc&&isIntl&&sv==='express'&&amt>100)dt='RATE';
-  else if(isFc&&isIntl&&sv==='standard')dt='SVC-MISMATCH';
-  else if(noOrd)dt='DATA';
-
-  // Legacy CAT code — written alongside for backward compat
-  var catMap={'SVC-MISMATCH':isMO?'CAT-02':noOrd?null:'CAT-06','DATA':'CAT-03','RATE':'CAT-05','DIM':null,'ACC':null,'INFO':ct==='INITIAL_PICK'||ct==='ADD_PICK'?'CAT-08':null};
-  if(sv.indexOf('media mail')>=0&&dt==='SVC-MISMATCH') catMap['SVC-MISMATCH']='CAT-07';
-  if(isFc&&isIntl&&sv==='standard'&&dt==='SVC-MISMATCH') catMap['SVC-MISMATCH']='CAT-04';
-  var cat_code=catMap[dt]||null;
-  var CAT_LBL={'CAT-02':'Manual Order Misroute','CAT-03':'No Order Number','CAT-04':'FlavorCloud Standard — Review','CAT-05':'FlavorCloud Express — Review','CAT-06':'Service Mapping Missing','CAT-07':'USPS Media Mail — Invalid','CAT-08':'Pick/Pack Fee'};
-
-  var is_flagged=dt!=='INFO';
-  var def=DT[dt]||DT['INFO'];
-  return{disc_type:dt,disc_label:def.label,charge_type:ct,cat_code:cat_code,cat_label:cat_code?CAT_LBL[cat_code]:null,is_flagged:is_flagged};
-}
-
-function detectPeriod(fn,rows){
-  var m=fn.match(/(\d{4}-\d{2}-\d{2})/g);
-  if(m&&m.length>=2)return m[0]+' – '+m[1];if(m&&m.length===1)return m[0];
-  var dates=[];for(var i=0;i<rows.length;i++){var d=rows[i]['Charge Date']||rows[i]['Ship Date']||rows[i]['Order Date'];if(d)dates.push(String(d).slice(0,10));}
-  if(dates.length){dates.sort();return dates[0]===dates[dates.length-1]?dates[0]:dates[0]+' – '+dates[dates.length-1];}
-  return new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-}
-
-// ── VIEW MODE ─────────────────────────────────────────────────────────────────
-function setViewMode(mode){
-  viewMode=mode;
-  document.getElementById('btnAggregate').classList.toggle('active',mode==='aggregate');
-  document.getElementById('btnCompare').classList.toggle('active',mode==='compare');
-  document.getElementById('aggView').style.display=mode==='aggregate'?'block':'none';
-  document.getElementById('cmpView').style.display=mode==='compare'?'block':'none';
-  if(mode==='compare')renderCompare();
-}
-
-// ── RENDER AGGREGATE ──────────────────────────────────────────────────────────
-function renderAggregate(charges,label){
-  document.getElementById('viewModeLabel').textContent=label+' — Aggregate';
-  var tot=charges.length;
-  if(!tot){document.getElementById('catSec').style.display='none';document.getElementById('aggEmpty').style.display='block';setText('m-tot','0');setText('m-ts',label);setText('m-cost','$0');setText('m-flag','0');setText('m-exp','$0');setText('cnt-a','0');setText('cnt-f','0');return;}
-  document.getElementById('aggEmpty').style.display='none';
-  var cost=0;for(var i=0;i<charges.length;i++)cost+=charges[i].charge_amount;
-  var fl=[];for(var i=0;i<charges.length;i++)if(charges[i].is_flagged)fl.push(charges[i]);
-  var flCost=0;for(var i=0;i<fl.length;i++)flCost+=fl[i].charge_amount;
-  setText('m-tot',tot.toLocaleString());setText('m-ts',label);
-  setText('m-cost','$'+fmt(cost));setText('m-cs','$'+(cost/tot).toFixed(2)+' avg');
-  setText('m-flag',fl.length);setText('m-fs',(fl.length/tot*100).toFixed(1)+'% of volume');
-  setText('m-exp','$'+fmt(flCost));setText('m-es',fl.length+' charges');
-  setText('cnt-a',tot);setText('cnt-f',fl.length);
-
-  var dts={};
-  for(var i=0;i<fl.length;i++){var c=fl[i],dt=c.disc_type||'OTHER';if(!dts[dt])dts[dt]={count:0,cost:0,cts:{}};dts[dt].count++;dts[dt].cost+=c.charge_amount;var ctv=c.charge_type||'UNKNOWN';dts[dt].cts[ctv]=(dts[dt].cts[ctv]||0)+1;}
-
-  var html='';
-  var sorted=Object.keys(dts).sort(function(a,b){return dts[b].cost-dts[a].cost;});
-  for(var i=0;i<sorted.length;i++){
-    var dt=sorted[i],d=dts[dt],def=DT[dt]||DT['OTHER'];
-    var ctList=Object.keys(d.cts).slice(0,3).join(', ');
-    html+='<tr onclick="fltFlags(\''+dt+'\',null);goTab(\'flags\')" style="cursor:pointer">';
-    html+='<td><span class="badge '+def.badge+'">'+dt+'</span></td>';
-    html+='<td style="color:var(--text)">'+def.label+'</td>';
-    html+='<td style="color:var(--text3);font-size:10px">'+ctList+'</td>';
-    html+='<td style="font-family:var(--mono);color:var(--text)">'+d.count+'</td>';
-    html+='<td style="font-family:var(--mono);color:var(--magenta)">$'+fmt(d.cost)+'</td>';
-    html+='<td style="font-size:10px;color:var(--text2);max-width:260px">'+def.action+'</td></tr>';
-  }
-  // Informational pick/pack row
-  var pk={count:0,cost:0};
-  for(var i=0;i<charges.length;i++){if(!charges[i].is_flagged&&(charges[i].charge_type==='INITIAL_PICK'||charges[i].charge_type==='ADD_PICK')){pk.count++;pk.cost+=charges[i].charge_amount;}}
-  if(pk.count>0)html+='<tr style="border-top:1px solid var(--border2);opacity:.6"><td><span class="badge bg">INFO</span></td><td style="color:var(--text)">Pick/Pack Fees</td><td style="color:var(--text3);font-size:10px">INITIAL_PICK, ADD_PICK</td><td style="font-family:var(--mono);color:var(--text)">'+pk.count+'</td><td style="font-family:var(--mono);color:var(--cyan)">$'+fmt(pk.cost)+'</td><td style="font-size:10px;color:var(--text2)">Informational — track for cost benchmarking, not billing errors</td></tr>';
-  document.getElementById('catTb').innerHTML=html;
-  document.getElementById('catSec').style.display='block';
-  drawDonut(charges);drawDTBar(dts);drawCTBar(charges);drawCountryBar(charges);
-}
-
-// ── COMPARE ───────────────────────────────────────────────────────────────────
-async function renderCompare(){
-  var ids=getSelectedIds(),cmpEmpty=document.getElementById('cmpEmpty'),cmpCards=document.getElementById('cmpCards');
-  if(ids.length<2){cmpEmpty.style.display='block';cmpCards.innerHTML='';return;}
-  cmpEmpty.style.display='none';
-  var periods=[];
-  for(var i=0;i<ids.length;i++){
-    var up=null;for(var j=0;j<allUploads.length;j++){if(allUploads[j].id===ids[i]){up=allUploads[j];break;}}
-    if(!up)continue;
-    var r=await sb.from('invoice_charges').select('*').eq('upload_id',ids[i]);
-    var ch=r.data||[],cost=0,fl=0,fcCost=0;
-    for(var k=0;k<ch.length;k++){cost+=ch[k].charge_amount;if(ch[k].is_flagged)fl++;if((ch[k].carrier||'').toLowerCase().indexOf('flavor')>=0)fcCost+=ch[k].charge_amount;}
-    periods.push({period:up.invoice_period,charges:ch.length,cost:cost,flagged:fl,fcPct:cost>0?(fcCost/cost*100).toFixed(1):0});
-  }
-  var COLS=['#b8ff3c','#00e5ff','#ff2d9b','#ffaa00','#7c3aed','#ff6b35','#50d0a0'];
-  cmpCards.style.gridTemplateColumns='repeat('+Math.min(periods.length,4)+',1fr)';
-  var html='';
-  for(var i=0;i<periods.length;i++){
-    var p=periods[i],col=COLS[i%COLS.length];
-    html+='<div class="cmp-card" style="border-top:2px solid '+col+'"><div class="cmp-period">'+p.period+'</div><div class="cmp-stats">';
-    html+='<div><div class="cmp-stat-lbl">Charges</div><div class="cmp-stat-val" style="color:'+col+'">'+p.charges.toLocaleString()+'</div></div>';
-    html+='<div><div class="cmp-stat-lbl">Total Cost</div><div class="cmp-stat-val" style="color:var(--cyan)">$'+fmt(p.cost)+'</div></div>';
-    html+='<div><div class="cmp-stat-lbl">Flagged</div><div class="cmp-stat-val" style="color:var(--amber)">'+p.flagged+'</div></div>';
-    html+='<div><div class="cmp-stat-lbl">FC %</div><div class="cmp-stat-val" style="color:var(--magenta)">'+p.fcPct+'%</div></div>';
-    html+='</div></div>';
-  }
-  cmpCards.innerHTML=html;
-  drawLine(document.getElementById('cmpLine'),periods.map(function(p){return p.period.slice(0,10);}),periods.map(function(p){return p.cost;}),'#b8ff3c');
-  document.getElementById('viewModeLabel').textContent=ids.length+' periods — Compare';
-}
-
-// ── ALL CHARGES TABLE ─────────────────────────────────────────────────────────
-function toggleDT(el,value){
-  if(value==='ALL'){document.querySelectorAll('#flt-dt .chip').forEach(function(c){c.className='chip';});el.classList.add('on');fDT=['ALL'];}
-  else{
-    var ac=document.querySelector('#flt-dt .chip:first-child');if(ac)ac.className='chip';
-    el.classList.toggle('on');
-    var active=[];
-    document.querySelectorAll('#flt-dt .chip').forEach(function(c){
-      if(c.classList.contains('on')){var m=c.getAttribute('onclick').match(/'([A-Z-]+)'\)/);if(m&&m[1]!=='ALL')active.push(m[1]);}
-    });
-    if(!active.length){if(ac)ac.classList.add('on');fDT=['ALL'];}else fDT=active;
-  }
-  applyFilters();
-}
-
-function setSingle(axis,value,el){
-  var cid=axis==='country'?null:'flt-'+axis;
-  if(cid){document.getElementById(cid).querySelectorAll('.chip').forEach(function(c){c.className='chip';});}
-  else{['fc-all','fc-us','fc-intl'].forEach(function(id){var e=document.getElementById(id);if(e)e.className='chip';});}
-  el.classList.add('on');
-  if(axis==='carrier')fCarrier=value;
-  else if(axis==='ct')fCT=value;
-  else if(axis==='country')fCountry=value;
-  applyFilters();
-}
-
-function applyFilters(){
-  var search=((document.getElementById('flt-search')||{}).value||'').toLowerCase();
-  var minA=parseFloat((document.getElementById('flt-min')||{}).value)||0;
-  var maxA=parseFloat((document.getElementById('flt-max')||{}).value)||Infinity;
-
-  tFiltered=activeCharges.filter(function(c){
-    if(fDT[0]!=='ALL'){
-      var match=false;
-      for(var i=0;i<fDT.length;i++){
-        if(fDT[i]==='INFO'&&!c.is_flagged){match=true;break;}
-        if(fDT[i]===c.disc_type){match=true;break;}
-      }
-      if(!match)return false;
-    }
-    if(fCarrier!=='ALL'&&c.carrier!==fCarrier)return false;
-    if(fCT!=='ALL'&&(c.charge_type||'UNKNOWN')!==fCT)return false;
-    if(fCountry==='US'&&c.destination_country!=='US'&&c.destination_country!=='United States')return false;
-    if(fCountry==='Intl'&&(c.destination_country==='US'||c.destination_country==='United States'||!c.destination_country))return false;
-    if(search&&((c.order_number||'')+(c.service_type||'')).toLowerCase().indexOf(search)<0)return false;
-    if(c.charge_amount<minA||c.charge_amount>maxA)return false;
-    return true;
-  });
-
-  tFiltered.sort(function(a,b){
-    var av=a[tSortField],bv=b[tSortField];
-    if(av===undefined||av===null)av='';if(bv===undefined||bv===null)bv='';
-    if(typeof av==='number')return tSortDir*(av-bv);
-    return tSortDir*String(av).localeCompare(String(bv));
-  });
-  tPage=1;renderTablePage();
-}
-
-function setSort(field){
-  if(tSortField===field)tSortDir*=-1;else{tSortField=field;tSortDir=-1;}
-  ['order_number','invoice_period','carrier','service_type','destination_country','charge_amount','charge_type','disc_type'].forEach(function(f){var el=document.getElementById('si-'+f);if(el)el.textContent='';});
-  var si=document.getElementById('si-'+field);if(si)si.textContent=tSortDir===-1?' ↓':' ↑';
-  applyFilters();
-}
-
-function renderTablePage(){
-  var start=(tPage-1)*tPageSize,page=tFiltered.slice(start,start+tPageSize);
-  var tb=document.getElementById('allChargesTb'),em=document.getElementById('tblEmpty');
-  setText('tbl-count',tFiltered.length.toLocaleString());
-  setText('tbl-total',activeCharges.length.toLocaleString());
-  setText('cnt-t',activeCharges.length);
-  if(!tFiltered.length){tb.innerHTML='';em.style.display='block';setText('tbl-sum','$0.00');renderPager();return;}
-  em.style.display='none';
-  var sum=0;for(var i=0;i<tFiltered.length;i++)sum+=tFiltered[i].charge_amount;
-  setText('tbl-sum','$'+fmt(sum)+' filtered total');
-  var html='';
-  for(var i=0;i<page.length;i++){
-    var c=page[i],dt=c.disc_type||'INFO',def=DT[dt]||DT['INFO'];
-    var dtBadge=c.is_flagged?'<span class="badge '+def.badge+'">'+dt+'</span>':'<span class="badge bg">INFO</span>';
-    var ctBadge='<span class="badge bg" style="font-size:9px">'+(c.charge_type||'UNKNOWN')+'</span>';
-    var legBadge=c.cat_code?'<span class="badge bg" style="font-size:9px;opacity:.6">'+c.cat_code+'</span>':'<span style="color:var(--text3);font-size:10px">—</span>';
-    var eid='te-'+(start+i);
-    html+='<tr>';
-    html+='<td style="font-family:var(--mono);color:var(--text)">'+(c.order_number||'<span style="color:var(--text3)">NULL</span>')+'</td>';
-    html+='<td style="color:var(--text3);font-size:10px">'+(c.invoice_period||'—')+'</td>';
-    html+='<td>'+c.carrier+'</td>';
-    html+='<td style="color:var(--text3);font-size:10px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(c.service_type||'—')+'</td>';
-    html+='<td style="font-family:var(--mono);font-size:10px">'+(c.destination_country||'US')+'</td>';
-    html+='<td style="font-family:var(--mono);color:'+(c.is_flagged?'var(--magenta)':'var(--text2)')+'">$'+(c.charge_amount||0).toFixed(2)+'</td>';
-    html+='<td>'+ctBadge+'</td>';
-    html+='<td>'+dtBadge+'</td>';
-    html+='<td>'+legBadge+'</td>';
-    html+='<td><button class="bsm bsm-lime" onclick="explainRow(\''+eid+'\',\''+esc(dt)+'\',\''+esc(c.carrier)+'\',\''+esc(c.service_type)+'\','+c.charge_amount+',\''+esc(c.order_number)+'\',\''+esc(c.destination_country)+'\',\''+esc(c.charge_type||'UNKNOWN')+'\')">✦</button></td>';
-    html+='</tr>';
-    html+='<tr id="erow-'+eid+'" style="display:none"><td colspan="10" style="padding:4px 14px 10px;background:rgba(0,0,0,.2)"><div id="'+eid+'" class="expl"></div></td></tr>';
-  }
-  tb.innerHTML=html;renderPager();
-}
-
-function renderPager(){
-  var total=Math.ceil(tFiltered.length/tPageSize)||1,p=document.getElementById('tbl-pager');
-  if(total<=1){p.innerHTML='';return;}
-  var h='';
-  if(tPage>1)h+='<button onclick="goPage('+(tPage-1)+')">←</button>';
-  var s=Math.max(1,tPage-2),e=Math.min(total,tPage+2);
-  for(var i=s;i<=e;i++)h+='<button class="'+(i===tPage?'cur':'')+'" onclick="goPage('+i+')">'+i+'</button>';
-  if(tPage<total)h+='<button onclick="goPage('+(tPage+1)+')">→</button>';
-  p.innerHTML=h;
-}
-function goPage(p){tPage=p;renderTablePage();}
-
-function clearAllFilters(){
-  fDT=['ALL'];fCarrier='ALL';fCT='ALL';fCountry='ALL';
-  document.querySelectorAll('.flt-panel .chip').forEach(function(c){c.className=c.className.replace(/ on(-[a-z])?/g,'');});
-  document.querySelector('#flt-dt .chip:first-child').classList.add('on');
-  var fc=document.getElementById('flt-carrier');if(fc)fc.querySelector('.chip').classList.add('on');
-  var fct=document.getElementById('flt-ct');if(fct)fct.querySelector('.chip').classList.add('on');
-  document.getElementById('fc-all').classList.add('on');
-  var fs=document.getElementById('flt-search');if(fs)fs.value='';
-  var fmn=document.getElementById('flt-min');if(fmn)fmn.value='';
-  var fmx=document.getElementById('flt-max');if(fmx)fmx.value='';
-  applyFilters();
-}
-
-function exportCSV(){
-  if(!tFiltered.length){toast('No data to export','warn');return;}
-  var cols=['order_number','invoice_period','carrier','service_type','destination_country','charge_amount','charge_type','disc_type','disc_label','cat_code','cat_label','is_flagged'];
-  var rows=[cols.join(',')];
-  for(var i=0;i<tFiltered.length;i++){var c=tFiltered[i];rows.push(cols.map(function(k){var v=c[k];if(v===null||v===undefined)v='';return '"'+String(v).replace(/"/g,'""')+'"';}).join(','));}
-  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download='hlc_charges_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
-  toast('Exported '+tFiltered.length+' rows','ok');
-}
-
-function explainRow(eid,dt,carrier,service,amount,order,country,ct){
-  var erow=document.getElementById('erow-'+eid);if(erow)erow.style.display='';
-  var el=document.getElementById(eid);if(!el)return;
-  el.innerHTML='<span class="expl loading">// Claude analyzing...</span>';
-  callAI(dt,carrier,service,amount,order,country,ct,function(text){el.innerHTML='<div class="expl">'+text+'</div>';});
-}
-
-// ── FLAGS TAB ─────────────────────────────────────────────────────────────────
-function renderFlags(charges){applyFlt(curFlt,charges);}
-function fltFlags(dt,el){
-  document.querySelectorAll('#fltChips .chip').forEach(function(c){c.className='chip';});
-  if(el)el.classList.add('on');
-  else{var a=document.querySelector('#fltChips .chip:first-child');if(a)a.classList.add('on');}
-  curFlt=dt;applyFlt(dt,activeCharges);goTab('flags');
-}
-function applyFlt(dt,charges){
-  if(!charges)charges=activeCharges;
-  var fl=[];for(var i=0;i<charges.length;i++)if(charges[i].is_flagged)fl.push(charges[i]);
-  var filtered=dt==='ALL'?fl:fl.filter(function(c){return c.disc_type===dt;});
-  var tb=document.getElementById('flagsTb'),em=document.getElementById('flagsE');
-  if(!filtered.length){tb.innerHTML='';em.style.display='block';return;}
-  em.style.display='none';
-  var html='';
-  for(var i=0;i<filtered.length;i++){
-    var c=filtered[i],dt2=c.disc_type||'OTHER',def=DT[dt2]||DT['OTHER'];
-    var explHtml=c.claude_explanation?'<div class="expl">'+c.claude_explanation+'</div>':'<span style="color:var(--text3);font-size:10px">—</span>';
-    html+='<tr>';
-    html+='<td style="font-family:var(--mono);color:var(--text)">'+(c.order_number||'<span style="color:var(--text3)">NULL</span>')+'</td>';
-    html+='<td style="color:var(--text3);font-size:10px">'+(c.invoice_period||'—')+'</td>';
-    html+='<td>'+c.carrier+'</td>';
-    html+='<td style="color:var(--text3);font-size:10px">'+(c.service_type||'—')+'</td>';
-    html+='<td style="font-family:var(--mono);font-size:10px">'+(c.destination_country||'US')+'</td>';
-    html+='<td style="font-family:var(--mono);color:var(--magenta)">$'+(c.charge_amount||0).toFixed(2)+'</td>';
-    html+='<td><span class="badge '+def.badge+'">'+dt2+'</span><br><span style="font-size:9px;color:var(--text3)">'+def.label+'</span></td>';
-    html+='<td><span class="badge bg" style="font-size:9px">'+(c.charge_type||'UNKNOWN')+'</span></td>';
-    html+='<td>'+(c.cat_code?'<span class="badge bg" style="font-size:9px;opacity:.6">'+c.cat_code+'</span>':'<span style="color:var(--text3);font-size:10px">—</span>')+'</td>';
-    html+='<td id="expl-'+i+'">'+explHtml+'</td>';
-    html+='<td><button class="bsm bsm-lime" onclick="explainC('+i+',\''+esc(dt2)+'\',\''+esc(c.carrier)+'\',\''+esc(c.service_type)+'\','+c.charge_amount+',\''+esc(c.order_number)+'\',\''+esc(c.destination_country)+'\',\''+esc(c.charge_type||'UNKNOWN')+'\')">✦ AI</button></td>';
-    html+='</tr>';
-  }
-  tb.innerHTML=html;
-}
-
-// ── AI EXPLAIN ────────────────────────────────────────────────────────────────
-function explainC(idx,dt,carrier,service,amount,order,country,ct){
-  var el=document.getElementById('expl-'+idx);
-  el.innerHTML='<div class="expl loading">// Claude analyzing...</div>';
-  callAI(dt,carrier,service,amount,order,country,ct,function(text){el.innerHTML='<div class="expl">'+text+'</div>';});
-}
-function callAI(dt,carrier,service,amount,order,country,ct,cb){
-  if(!aKey){
-    cb('<span style="color:var(--amber);font-size:10px">⚠ AI key not configured — contact Juan</span>');
-    return;
-  }
-  var def=DT[dt]||DT['OTHER'];
-  var p='You are an ops analyst for Craighill, a NYC design brand shipping via HLC (Highline Commerce, Brooklyn 3PL). Write ONE concise plain-English sentence explaining this HLC invoice charge and what specific action to take. Be precise about dollars and carrier.\n\nDiscrepancy Type: '+dt+' — '+def.label+'\nRecommended Action: '+def.action+'\nCharge Type: '+(ct||'unknown')+'\nCarrier: '+carrier+' | Service: '+(service||'unknown')+' | Amount: $'+amount+' | Order: '+(order||'NULL')+' | Ship-To Country: '+(country||'US')+'\n\nStart with "This $'+amount+' charge..."';
-  fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key':aKey,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
-    body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:200,messages:[{role:'user',content:p}]})
-  })
-  .then(function(r){return r.json();})
-  .then(function(d){cb((d.content&&d.content[0]&&d.content[0].text)||d.error||'Unable to generate explanation.');})
-  .catch(function(err){console.error(err);cb('<span style="color:var(--text3);font-size:10px">API error — check console</span>');});
-}
-
-// ── CREDITS ───────────────────────────────────────────────────────────────────
-async function saveClaim(){
-  var amount=parseFloat(document.getElementById('cr-a').value);
-  if(!amount||isNaN(amount)){toast('Amount required','err');return;}
-  var r=await sb.from('credit_log').insert({order_number:gv('cr-o')||null,carrier:gv('cr-c')||null,amount:amount,cat_code:gv('cr-k')||null,cat_label:gv('cr-k')||null,contact_name:gv('cr-cn')||null,contact_email:gv('cr-em')||null,invoice_period:gv('cr-p')||null,claim_status:gv('cr-st'),notes:gv('cr-n')||null,created_by:document.getElementById('usel').value});
-  if(r.error){toast('Save failed: '+r.error.message,'err');return;}
-  toast('Claim saved ✓','ok');clearClaim();loadCredits();
+async function loadInvoice(){
+  var r=await buildQuery('rails_invoice_charges').order('date_from',{ascending:false});
+  invData=r.data||[];
+  setText('cnt-i',invData.length.toLocaleString());
 }
 async function loadCredits(){
   if(!sb)return;
   var r=await sb.from('credit_log').select('*').order('filed_at',{ascending:false});
-  var data=r.data||[];setText('cnt-cr',data.length);
-  var tb=document.getElementById('crTb'),em=document.getElementById('crE');
-  if(!data.length){tb.innerHTML='';em.style.display='block';setText('crTotal','$0.00');return;}
+  creditData=r.data||[];
+  setText('cnt-cr',creditData.length);
+  renderCredits();
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────────────────────────
+function renderOverview(){
+  var shipTotal=0;for(var i=0;i<shipData.length;i++)shipTotal+=parseFloat(shipData[i].charge_amount||0);
+  var pickTotal=0;
+  for(var i=0;i<ordData.length;i++){
+    pickTotal+=parseFloat(ordData[i].initial_pick_fee_amount||0)*Math.max(parseFloat(ordData[i].initial_pick_fee_qty||1),1);
+    pickTotal+=parseFloat(ordData[i].additional_pick_fee_amount||0)*parseFloat(ordData[i].additional_pick_fee_qty||0);
+    pickTotal+=parseFloat(ordData[i].box_charge_amount||0)*parseFloat(ordData[i].box_charge_qty||0);
+  }
+  var overhead=0,credits=0;
+  for(var i=0;i<invData.length;i++){var a=parseFloat(invData[i].amount||0);if(a<0)credits+=Math.abs(a);else overhead+=a;}
+  var uniqOrds={};for(var i=0;i<ordData.length;i++)if(ordData[i].order_number)uniqOrds[ordData[i].order_number]=true;
+  var ordCount=Object.keys(uniqOrds).length;
+  setText('ov-ship','$'+fmt(shipTotal));setText('ov-ship-s',shipData.length+' charges');
+  setText('ov-pick','$'+fmt(pickTotal));setText('ov-pick-s',ordData.length+' rows');
+  setText('ov-oh','$'+fmt(overhead));
+  setText('ov-cred','$'+fmt(credits));
+  setText('ov-ords',ordCount.toLocaleString());
+  setText('ov-avg','$'+fmt(ordCount>0?shipTotal/ordCount:0));
+  setText('periodStatus','<span>'+periodLabel()+'</span> · '+shipData.length+' ship · '+ordData.length+' orders · '+invData.length+' inv');
+  drawOverviewCharts();
+  renderInvSummary();
+}
+
+function renderInvSummary(){
+  var tb=document.getElementById('invSummTb'),em=document.getElementById('invSummE');
+  if(!invData.length){tb.innerHTML='';em.style.display='block';return;}
   em.style.display='none';
-  var tot=0,rec=0,open=0;
-  for(var i=0;i<data.length;i++){tot+=data[i].amount||0;if(data[i].claim_status==='approved'||data[i].claim_status==='resolved')rec+=data[i].amount||0;if(data[i].claim_status==='pending'||data[i].claim_status==='appealed')open++;}
-  setText('crTotal','$'+fmt(tot)+' total exposure');
-  setText('cr-exp','$'+fmt(tot));setText('cr-rec','$'+fmt(rec));
-  setText('cr-rate',tot>0?(rec/tot*100).toFixed(0)+'%':'0%');setText('cr-open',open);
-  setText('m-rec','$'+fmt(rec));setText('m-rrate',tot>0?(rec/tot*100).toFixed(0)+'%':'—');
-  var SC={pending:'ba',approved:'bl',denied:'bm',appealed:'bc',resolved:'bt'};
-  var html='';
-  for(var i=0;i<data.length;i++){
-    var c=data[i];
-    html+='<tr><td style="font-family:var(--mono)">'+(c.order_number||'—')+'</td><td style="color:var(--text3);font-size:10px">'+(c.invoice_period||'—')+'</td><td>'+(c.carrier||'—')+'</td><td>'+(c.cat_code?'<span class="badge bg">'+c.cat_code+'</span>':'—')+'</td><td style="font-family:var(--mono);color:var(--magenta)">$'+(c.amount||0).toFixed(2)+'</td><td style="font-size:10px">'+(c.contact_name||'—')+'</td><td><span class="badge '+(SC[c.claim_status]||'bg')+'">'+c.claim_status+'</span></td><td style="font-size:10px;color:var(--text2);max-width:160px">'+(c.notes||'—')+'</td><td style="color:var(--text3);font-size:10px">'+(c.created_by||'—')+'</td><td><button class="bsm bsm-gray" onclick="cycleS(\''+c.id+'\',\''+c.claim_status+'\')">→</button></td></tr>';
+  var html='',sorted=invData.slice().sort(function(a,b){return Math.abs(parseFloat(b.amount||0))-Math.abs(parseFloat(a.amount||0));});
+  for(var i=0;i<sorted.length;i++){
+    var c=sorted[i],amt=parseFloat(c.amount||0),isCredit=amt<0||(c.charge_on_invoice||'').toLowerCase()==='credit';
+    html+='<tr><td><span class="badge '+(isCredit?'bt':'bg')+'">'+(c.charge_on_invoice||'—')+'</span></td>';
+    html+='<td style="color:var(--text3);font-size:10px">'+(c.date_from||'')+(c.date_to?' – '+c.date_to:'')+'</td>';
+    html+='<td style="color:var(--text2);max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(c.description||'—')+'</td>';
+    html+='<td style="font-family:var(--mono);color:'+(isCredit?'var(--teal)':'var(--text)')+'">$'+fmt(Math.abs(amt))+(isCredit?' CR':'')+'</td>';
+    html+='<td style="color:var(--text3)">'+(c.quantity||'—')+'</td></tr>';
   }
   tb.innerHTML=html;
 }
-async function cycleS(id,cur){var s=['pending','approved','denied','appealed','resolved'];var next=s[(s.indexOf(cur)+1)%s.length];await sb.from('credit_log').update({claim_status:next,updated_at:new Date().toISOString()}).eq('id',id);toast('Status → '+next,'info');loadCredits();}
-function clearClaim(){['cr-o','cr-c','cr-a','cr-k','cr-cn','cr-em','cr-p','cr-n'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});document.getElementById('cr-st').value='pending';}
 
-// ── TRENDS ────────────────────────────────────────────────────────────────────
-function renderTrends(){
-  if(allUploads.length<2){document.getElementById('trE').style.display='block';document.getElementById('trC').style.display='none';return;}
-  document.getElementById('trE').style.display='none';document.getElementById('trC').style.display='block';
-  // Key by upload.id — the guaranteed unique identifier
-  var shipById={},pickById={},flagById={};
-  for(var i=0;i<activeCharges.length;i++){
-    var c=activeCharges[i],uid=c.upload_id;if(!uid)continue;
-    var isPick=c.charge_type==='INITIAL_PICK'||c.charge_type==='ADD_PICK';
-    if(isPick){if(!pickById[uid])pickById[uid]=0;pickById[uid]+=c.charge_amount||0;}
-    else{if(!shipById[uid])shipById[uid]=0;shipById[uid]+=c.charge_amount||0;}
-    if(c.is_flagged){if(!flagById[uid])flagById[uid]=0;flagById[uid]++;}
+// ── OUTLIER DETECTION ─────────────────────────────────────────────────────────
+function runOutlierCheck(){
+  var flags=[];
+  for(var i=0;i<shipData.length;i++){
+    var amt=parseFloat(shipData[i].charge_amount||0);
+    if(amt>OUTLIER_SHIP_THRESHOLD)flags.push('High carrier charge: $'+fmt(amt)+' — order '+(shipData[i].order_number||'?')+' ('+shipData[i].carrier+', '+shipData[i].service_level+')');
   }
-  var periods=allUploads.slice().reverse();
-  var labels=periods.map(function(u){return(u.invoice_period||'?').slice(0,10);});
-  var shipData=periods.map(function(u){return shipById[u.id]||0;});
-  var pickData=periods.map(function(u){return pickById[u.id]||0;});
-  var flagPct=periods.map(function(u){var t=u.total_charges||0;return t>0?+((flagById[u.id]||0)/t*100).toFixed(1):0;});
-  drawDualLine(document.getElementById('cvPeriod'),labels,shipData,pickData,'#b8ff3c','#7c3aed','Shipping','Pick/Pack');
-  drawLine(document.getElementById('cvFcPct'),labels,flagPct,'#ff2d9b');
-  var cars={};
-  for(var i=0;i<activeCharges.length;i++){var c=activeCharges[i];if(c.charge_type==='INITIAL_PICK'||c.charge_type==='ADD_PICK')continue;var n=c.carrier||'Unknown';if(!cars[n])cars[n]={t:0,cnt:0};cars[n].t+=c.charge_amount||0;cars[n].cnt++;}
-  var sorted=[];for(var n in cars)sorted.push([n,cars[n]]);sorted.sort(function(a,b){return b[1].t-a[1].t;});sorted=sorted.slice(0,6);
-  if(sorted.length)drawHBar('cvAvg',sorted.map(function(x){return x[0];}),sorted.map(function(x){return+(x[1].t/x[1].cnt).toFixed(2);}),'#00e5ff');
+  for(var i=0;i<ordData.length;i++){
+    var q=parseFloat(ordData[i].additional_pick_fee_qty||0);
+    if(q>OUTLIER_PICK_THRESHOLD)flags.push('High additional picks: '+q+' units — order '+(ordData[i].order_number||'?'));
+  }
+  var banner=document.getElementById('outlierBanner');
+  if(!flags.length){banner.classList.remove('show');return;}
+  banner.classList.add('show');
+  var shown=flags.slice(0,5);
+  banner.innerHTML='<strong>⚠ '+flags.length+' Outlier'+(flags.length>1?'s':'')+' in '+periodLabel()+'</strong>'
+    +' <span style="font-size:9px;color:var(--text3)">(thresholds: $'+OUTLIER_SHIP_THRESHOLD+' shipping · '+OUTLIER_PICK_THRESHOLD+' additional picks — pending Kim review)</span><br>'
+    +shown.join('<br>')
+    +(flags.length>5?'<br><em style="color:var(--text3)">+'+(flags.length-5)+' more...</em>':'');
 }
 
-// ── HISTORY ───────────────────────────────────────────────────────────────────
-async function loadHistory(){
-  if(!sb)return;
-  var r=await sb.from('invoice_uploads').select('*').order('created_at',{ascending:false});
-  allUploads=r.data||[];setText('cnt-h',allUploads.length);
-  var list=document.getElementById('histList'),em=document.getElementById('histE');
-  if(!allUploads.length){list.innerHTML='';em.style.display='block';return;}
+// ── AI ENGINE — SONNET WITH HAIKU FALLBACK ────────────────────────────────────
+async function callAI(prompt,onChunk){
+  if(!aKey)return'AI key not configured — contact Juan or Kim.';
+  var models=['claude-sonnet-4-20250514','claude-haiku-4-5-20251001'];
+  for(var mi=0;mi<models.length;mi++){
+    try{
+      var resp=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':aKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:models[mi],max_tokens:1000,messages:[{role:'user',content:prompt}]})
+      });
+      var data=await resp.json();
+      if(data.error){
+        if(mi===0){console.warn('Sonnet failed, trying Haiku:',data.error);continue;}
+        return'AI error: '+(data.error.message||'Unknown');
+      }
+      var text=(data.content&&data.content[0]&&data.content[0].text)||'No response.';
+      if(onChunk)onChunk(models[mi]);
+      return text;
+    }catch(e){
+      if(mi===0){console.warn('Sonnet exception, trying Haiku:',e);continue;}
+      return'AI unavailable: '+e.message;
+    }
+  }
+  return'AI unavailable.';
+}
+
+async function generateNarrative(){
+  var btn=document.getElementById('aiGenBtn'),narr=document.getElementById('aiNarrative'),empty=document.getElementById('aiEmpty');
+  btn.disabled=true;btn.textContent='Generating...';
+  narr.style.display='block';empty.style.display='none';
+  narr.className='ai-narrative loading';narr.textContent='Analyzing '+periodLabel()+' data...';
+
+  var shipTotal=0;for(var i=0;i<shipData.length;i++)shipTotal+=parseFloat(shipData[i].charge_amount||0);
+  var pickTotal=0;for(var i=0;i<ordData.length;i++){pickTotal+=parseFloat(ordData[i].initial_pick_fee_amount||0)+parseFloat(ordData[i].additional_pick_fee_amount||0);}
+  var overhead=0,credits=0;for(var i=0;i<invData.length;i++){var a=parseFloat(invData[i].amount||0);if(a<0)credits+=Math.abs(a);else overhead+=a;}
+  var uniqOrds={};for(var i=0;i<ordData.length;i++)if(ordData[i].order_number)uniqOrds[ordData[i].order_number]=true;
+  var ordCount=Object.keys(uniqOrds).length;
+  var cars={};for(var i=0;i<shipData.length;i++){var c=shipData[i].carrier||'Unknown';cars[c]=(cars[c]||0)+parseFloat(shipData[i].charge_amount||0);}
+  var topCarrier=Object.keys(cars).sort(function(a,b){return cars[b]-cars[a];})[0]||'Unknown';
+  var outlierCount=shipData.filter(function(c){return parseFloat(c.charge_amount||0)>OUTLIER_SHIP_THRESHOLD;}).length;
+  var autoCredits=invData.filter(function(c){return parseFloat(c.amount||0)<0||(c.charge_on_invoice||'').toLowerCase()==='credit';});
+  var intlCount=shipData.filter(function(c){return c.ship_to_country&&c.ship_to_country!=='US';}).length;
+
+  var prompt='You are a sharp ops analyst for Craighill, a NYC design brand using HLC (Highline Commerce) as their 3PL in Brooklyn. Write a 3-4 sentence plain-English summary of this invoice period for the operations team. Be specific about dollar amounts and flag anything worth investigating. Keep it conversational and actionable — this is for Juan (Inventory & Fulfillment Manager) and Kim (Director of Operations).\n\nPeriod: '+periodLabel()+'\nShipping charges: $'+fmt(shipTotal)+' across '+shipData.length+' shipments\nPick & pack fees: $'+fmt(pickTotal)+' across '+ordCount+' unique orders\nOverhead (storage, mgmt, supplies): $'+fmt(overhead)+'\nCredits received: $'+fmt(credits)+' ('+autoCredits.length+' credit line items)\nTop carrier by spend: '+topCarrier+' ($'+fmt(cars[topCarrier]||0)+')\nInternational shipments: '+intlCount+'\nOutlier charges (>$'+OUTLIER_SHIP_THRESHOLD+'): '+outlierCount+'\nOpen credit claims in log: '+creditData.filter(function(c){return c.claim_status==='pending'||c.claim_status==='appealed';}).length+'\n\nWrite only the summary paragraph. No headers, no bullet points.';
+
+  var text=await callAI(prompt,function(model){
+    document.getElementById('aiModelBadge').textContent=model.indexOf('sonnet')>=0?'Sonnet 4':'Haiku 3.5';
+  });
+  narr.className='ai-narrative';
+  narr.textContent=text;
+  btn.disabled=false;btn.textContent='✦ Regenerate';
+}
+
+// ── SHIPPING TABLE ────────────────────────────────────────────────────────────
+function buildShipChips(){
+  var cars={};for(var i=0;i<shipData.length;i++)if(shipData[i].carrier)cars[shipData[i].carrier]=true;
+  var el=document.getElementById('sflt-carrier');
+  var h='<div class="chip on" onclick="setSFlt(\'carrier\',\'ALL\',this)">All</div>';
+  Object.keys(cars).sort().forEach(function(c){h+='<div class="chip" onclick="setSFlt(\'carrier\',\''+esc(c)+'\',this)">'+c+'</div>';});
+  el.innerHTML=h;
+}
+function setSFlt(axis,val,el){
+  if(axis==='carrier'){document.getElementById('sflt-carrier').querySelectorAll('.chip').forEach(function(c){c.className='chip';});sfCarrier=val;}
+  else{['sfc-all','sfc-us','sfc-intl'].forEach(function(id){var e=document.getElementById(id);if(e)e.className='chip';});sfCountry=val;}
+  el.classList.add('on');applyShipFlt();
+}
+function applyShipFlt(){
+  var search=((document.getElementById('sflt-search')||{}).value||'').toLowerCase().trim();
+  var minA=parseFloat((document.getElementById('sflt-min')||{}).value)||0;
+  var maxA=parseFloat((document.getElementById('sflt-max')||{}).value)||Infinity;
+  shipFilt=shipData.filter(function(c){
+    if(sfCarrier!=='ALL'&&c.carrier!==sfCarrier)return false;
+    if(sfCountry==='US'&&c.ship_to_country!=='US')return false;
+    if(sfCountry==='Intl'&&(c.ship_to_country==='US'||!c.ship_to_country))return false;
+    if(search&&((c.order_number||'')+(c.tracking_number||'')+(c.ship_to_city||'')+(c.carrier||'')).toLowerCase().indexOf(search)<0)return false;
+    var amt=parseFloat(c.charge_amount||0);if(amt<minA||amt>maxA)return false;
+    return true;
+  });
+  shipFilt.sort(function(a,b){var av=a[shipSort]||'',bv=b[shipSort]||'';if(typeof av==='number')return shipDir*(av-bv);return shipDir*String(av).localeCompare(String(bv));});
+  shipPage=1;renderShipPage();
+}
+function setShipSort(f){if(shipSort===f)shipDir*=-1;else{shipSort=f;shipDir=-1;}applyShipFlt();}
+function renderShipPage(){
+  var start=(shipPage-1)*PAGE,page=shipFilt.slice(start,start+PAGE);
+  var tb=document.getElementById('shipTb'),em=document.getElementById('shipE');
+  var tot=0;for(var i=0;i<shipFilt.length;i++)tot+=parseFloat(shipFilt[i].charge_amount||0);
+  setText('ship-count',shipFilt.length.toLocaleString());setText('ship-total',shipData.length.toLocaleString());
+  setText('ship-sum','$'+fmt(tot)+' filtered total');
+  if(!shipFilt.length){tb.innerHTML='';em.style.display='block';renderPager('ship-pager',0,shipPage,function(p){shipPage=p;renderShipPage();});return;}
   em.style.display='none';
   var html='';
-  for(var i=0;i<allUploads.length;i++){
-    var u=allUploads[i],isSel=selectedUploadIds.indexOf(u.id)>=0;
-    html+='<div class="hist-row'+(isSel?' selected':'')+'" id="hrow-'+u.id+'">';
-    html+='<input type="checkbox" class="hist-cb" id="hcb-'+u.id+'"'+(isSel?' checked':'')+' onchange="toggleSel(\''+u.id+'\')">';
-    html+='<div class="hist-info"><div class="hist-period">'+(u.invoice_period||'Unknown')+'</div><div class="hist-meta">Uploaded by '+u.uploaded_by+' · '+new Date(u.created_at).toLocaleDateString()+'</div></div>';
-    html+='<div class="hist-stats"><span class="badge bg">'+u.total_charges+' charges</span><span class="badge ba">'+u.flagged_charges+' flagged</span><span style="font-family:var(--mono);font-size:11px;color:var(--text2)">$'+fmt(u.total_cost||0)+'</span></div>';
-    html+='<button class="bsm bsm-red" style="margin-left:auto;flex-shrink:0" onclick="deleteUpload(\''+u.id+'\',event)">✕ DELETE</button></div>';
+  for(var i=0;i<page.length;i++){
+    var c=page[i],amt=parseFloat(c.charge_amount||0),isOutlier=amt>OUTLIER_SHIP_THRESHOLD,isIntl=c.ship_to_country&&c.ship_to_country!=='US';
+    var rid='sr'+( start+i);
+    html+='<tr'+(isOutlier?' style="background:rgba(255,170,0,.04)"':'')+'>'+
+      '<td style="font-family:var(--mono);color:var(--text)">'+(c.order_number||'<span style="color:var(--text3)">—</span>')+'</td>'+
+      '<td>'+( c.carrier||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+(c.service_level||'—')+'</td>'+
+      '<td><span class="badge '+(isIntl?'bc':'bg')+'">'+(c.ship_to_country||'US')+'</span></td>'+
+      '<td style="color:var(--text3)">'+(c.ship_to_state||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--text2)">'+(c.package_name||'—')+'</td>'+
+      '<td style="font-family:var(--mono);font-size:10px">'+(c.package_weight?c.package_weight+' '+(c.package_weight_unit||'lb'):'—')+'</td>'+
+      '<td style="font-family:var(--mono);color:'+(isOutlier?'var(--amber)':'var(--lime)')+'">$'+fmt(amt)+(isOutlier?' ⚠':'')+'</td>'+
+      '<td style="color:var(--text3);font-size:10px">'+(c.ship_date||'—')+'</td>'+
+      '<td><button class="bsm bsm-lime" onclick="explainShipRow(\''+rid+'\',this,'+JSON.stringify({order:c.order_number||'',carrier:c.carrier||'',svc:c.service_level||'',amt:amt,country:c.ship_to_country||'US',pkg:c.package_name||''}).replace(/'/g,"&#39;")+')" style="font-size:9px;padding:2px 7px">✦</button></td>'+
+      '</tr>'+
+      '<tr id="erow-'+rid+'" style="display:none"><td colspan="10" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+rid+'" class="ai-explain-text"></div></td></tr>';
+  }
+  tb.innerHTML=html;
+  renderPager('ship-pager',shipFilt.length,shipPage,function(p){shipPage=p;renderShipPage();});
+}
+async function explainShipRow(rid,btn,info){
+  var erow=document.getElementById('erow-'+rid),el=document.getElementById(rid);
+  if(erow.style.display!=='none'&&el.textContent){erow.style.display='none';return;}
+  erow.style.display='';el.className='ai-explain-text loading';el.textContent='Analyzing...';
+  var prompt='You are an ops analyst for Craighill (NYC design brand, ships via HLC Brooklyn 3PL). In ONE sentence explain this shipping charge and whether it looks normal or needs investigation.\n\nCarrier: '+info.carrier+' | Service: '+info.svc+' | Package: '+info.pkg+' | Destination: '+info.country+' | Amount: $'+fmt(info.amt)+' | Order: '+(info.order||'unknown')+'\nOutlier threshold: $'+OUTLIER_SHIP_THRESHOLD+'\n\nStart with "This $'+fmt(info.amt)+' charge..."';
+  var text=await callAI(prompt,null);
+  el.className='ai-explain-text';el.textContent=text;
+}
+function clearShipFlt(){sfCarrier='ALL';sfCountry='ALL';['sflt-search','sflt-min','sflt-max'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});buildShipChips();document.getElementById('sfc-all').classList.add('on');applyShipFlt();}
+
+// ── ORDER CHARGES TABLE ───────────────────────────────────────────────────────
+function buildOrdChips(){
+  var pkgs={},cars={};
+  for(var i=0;i<ordData.length;i++){if(ordData[i].package_type)pkgs[ordData[i].package_type]=true;if(ordData[i].carrier)cars[ordData[i].carrier]=true;}
+  var pe=document.getElementById('oflt-pkg');
+  var h='<div class="chip on" onclick="setOFlt(\'pkg\',\'ALL\',this)">All</div>';
+  Object.keys(pkgs).sort().forEach(function(p){h+='<div class="chip" onclick="setOFlt(\'pkg\',\''+esc(p)+'\',this)">'+p.slice(0,18)+'</div>';});
+  pe.innerHTML=h;
+  var ce=document.getElementById('oflt-carrier');
+  var h2='<div class="chip on" onclick="setOFlt(\'carrier\',\'ALL\',this)">All</div>';
+  Object.keys(cars).sort().forEach(function(c){h2+='<div class="chip" onclick="setOFlt(\'carrier\',\''+esc(c)+'\',this)">'+c+'</div>';});
+  ce.innerHTML=h2;
+}
+function setOFlt(axis,val,el){
+  if(axis==='pkg'){document.getElementById('oflt-pkg').querySelectorAll('.chip').forEach(function(c){c.className='chip';});ofPkg=val;}
+  else{document.getElementById('oflt-carrier').querySelectorAll('.chip').forEach(function(c){c.className='chip';});ofCarrier=val;}
+  el.classList.add('on');applyOrdFlt();
+}
+function applyOrdFlt(){
+  var search=((document.getElementById('oflt-search')||{}).value||'').toLowerCase().trim();
+  ordFilt=ordData.filter(function(c){
+    if(ofPkg!=='ALL'&&c.package_type!==ofPkg)return false;
+    if(ofCarrier!=='ALL'&&c.carrier!==ofCarrier)return false;
+    if(search&&((c.order_number||'')+(c.recipient_city||'')).toLowerCase().indexOf(search)<0)return false;
+    return true;
+  });
+  ordFilt.sort(function(a,b){var av=a[ordSort]||'',bv=b[ordSort]||'';if(typeof av==='number')return ordDir*(av-bv);return ordDir*String(av).localeCompare(String(bv));});
+  ordPage=1;renderOrdPage();
+}
+function setOrdSort(f){if(ordSort===f)ordDir*=-1;else{ordSort=f;ordDir=-1;}applyOrdFlt();}
+function renderOrdPage(){
+  var start=(ordPage-1)*PAGE,page=ordFilt.slice(start,start+PAGE);
+  var tb=document.getElementById('ordTb'),em=document.getElementById('ordE');
+  var pickTot=0;for(var i=0;i<ordFilt.length;i++){pickTot+=parseFloat(ordFilt[i].initial_pick_fee_amount||0)+parseFloat(ordFilt[i].additional_pick_fee_amount||0);}
+  setText('ord-count',ordFilt.length.toLocaleString());setText('ord-total',ordData.length.toLocaleString());
+  setText('ord-sum','$'+fmt(pickTot)+' total pick fees (filtered)');
+  if(!ordFilt.length){tb.innerHTML='';em.style.display='block';renderPager('ord-pager',0,ordPage,function(p){ordPage=p;renderOrdPage();});return;}
+  em.style.display='none';
+  var html='';
+  for(var i=0;i<page.length;i++){
+    var c=page[i];
+    var iP=parseFloat(c.initial_pick_fee_amount||0),aP=parseFloat(c.additional_pick_fee_amount||0);
+    var aQ=parseFloat(c.additional_pick_fee_qty||0),isHighPick=aQ>OUTLIER_PICK_THRESHOLD;
+    var dims=c.package_length?c.package_length+'×'+c.package_width+'×'+c.package_height:'—';
+    html+='<tr'+(isHighPick?' style="background:rgba(255,170,0,.04)"':'')+'>'+
+      '<td style="font-family:var(--mono);color:var(--text)">'+(c.order_number||'—')+'</td>'+
+      '<td>'+(c.carrier||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+(c.service_level||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--text2)">'+(c.package_type||'—')+'</td>'+
+      '<td style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+dims+'</td>'+
+      '<td style="font-family:var(--mono);font-size:10px">'+(c.weight_value?c.weight_value+' '+(c.weight_unit||'lb'):'—')+'</td>'+
+      '<td style="font-family:var(--mono);color:var(--cyan)">$'+fmt(iP)+'</td>'+
+      '<td style="font-family:var(--mono);color:'+(aP>0?'var(--amber)':'var(--text3)')+'">$'+fmt(aP)+(isHighPick?' ⚠':'')+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+(c.recipient_city||'')+(c.recipient_state?', '+c.recipient_state:'')+'</td>'+
+      '<td style="color:var(--text3);font-size:10px">'+(c.ship_datetime?c.ship_datetime.slice(0,10):'—')+'</td>'+
+      '</tr>';
+  }
+  tb.innerHTML=html;
+  renderPager('ord-pager',ordFilt.length,ordPage,function(p){ordPage=p;renderOrdPage();});
+}
+function clearOrdFlt(){ofPkg='ALL';ofCarrier='ALL';var e=document.getElementById('oflt-search');if(e)e.value='';buildOrdChips();applyOrdFlt();}
+
+// ── INVOICE CHARGES TABLE ─────────────────────────────────────────────────────
+function setInvSort(f){if(invSort===f)invDir*=-1;else{invSort=f;invDir=-1;}renderInvoice();}
+function renderInvoice(){
+  var sorted=invData.slice().sort(function(a,b){var av=a[invSort]||'',bv=b[invSort]||'';if(typeof av==='number')return invDir*(av-bv);return invDir*String(av).localeCompare(String(bv));});
+  var start=(invPage-1)*PAGE,page=sorted.slice(start,start+PAGE);
+  var tb=document.getElementById('invTb'),em=document.getElementById('invE');
+  var net=0;for(var i=0;i<invData.length;i++)net+=parseFloat(invData[i].amount||0);
+  setText('inv-sum','Net: $'+fmt(net)+(net<0?' (credit balance)':''));
+  if(!invData.length){tb.innerHTML='';em.style.display='block';return;}
+  em.style.display='none';
+  var html='';
+  for(var i=0;i<page.length;i++){
+    var c=page[i],amt=parseFloat(c.amount||0),isCredit=amt<0||(c.charge_on_invoice||'').toLowerCase()==='credit';
+    var rid='ir'+(start+i);
+    html+='<tr>'+
+      '<td style="color:var(--text3);font-size:10px">'+(c.date_from||'')+(c.date_to?' – '+c.date_to:'')+'</td>'+
+      '<td><span class="badge '+(isCredit?'bt':'bg')+'">'+(c.charge_on_invoice||'—')+'</span></td>'+
+      '<td style="font-family:var(--mono);color:'+(isCredit?'var(--teal)':'var(--text)')+'">$'+fmt(Math.abs(amt))+(isCredit?' CR':'')+'</td>'+
+      '<td style="color:var(--text3)">'+(c.quantity||'—')+'</td>'+
+      '<td style="color:var(--text2);max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(c.description||'—')+'</td>'+
+      '<td><button class="bsm bsm-lime" onclick="explainInvRow(\''+rid+'\',this,\''+esc(c.charge_on_invoice||'')+'\','+Math.abs(amt)+',\''+esc(c.description||'')+'\','+isCredit+')" style="font-size:9px;padding:2px 7px">✦</button></td>'+
+      '</tr>'+
+      '<tr id="erow-'+rid+'" style="display:none"><td colspan="6" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+rid+'" class="ai-explain-text"></div></td></tr>';
+  }
+  tb.innerHTML=html;
+  renderPager('inv-pager',invData.length,invPage,function(p){invPage=p;renderInvoice();});
+}
+async function explainInvRow(rid,btn,type,amt,desc,isCredit){
+  var erow=document.getElementById('erow-'+rid),el=document.getElementById(rid);
+  if(erow.style.display!=='none'&&el.textContent){erow.style.display='none';return;}
+  erow.style.display='';el.className='ai-explain-text loading';el.textContent='Analyzing...';
+  var prompt='You are an ops analyst for Craighill (NYC design brand, 3PL is HLC Brooklyn). In ONE sentence explain this HLC invoice line item and what action (if any) is needed.\n\nCharge type: '+type+' | Amount: $'+fmt(amt)+(isCredit?' (CREDIT)':'')+' | Description: '+desc+'\n\nIf it is a credit, explain what it likely refers to and whether it should be logged in the credit tracker. Start with "This $'+fmt(amt)+' '+(isCredit?'credit':'charge')+'..."';
+  var text=await callAI(prompt,null);
+  el.className='ai-explain-text';el.textContent=text;
+}
+
+// ── CREDIT DETECTION ──────────────────────────────────────────────────────────
+function detectCredits(){
+  var autoCredits=invData.filter(function(c){var a=parseFloat(c.amount||0);return a<0||(c.charge_on_invoice||'').toLowerCase()==='credit';});
+  var list=document.getElementById('autoCredList'),em=document.getElementById('autoCredE');
+  setText('autoCredHint',autoCredits.length+' found in period');
+  if(!autoCredits.length){list.innerHTML='';em.style.display='block';document.getElementById('matchPanel').style.display='none';return;}
+  em.style.display='none';
+  var html='';
+  
+  var html='';
+  for(var i=0;i<autoCredits.length;i++){
+    var c=autoCredits[i],amt=Math.abs(parseFloat(c.amount||0)),rid='acr'+i;
+    html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:12px">'+
+      '<div style="flex:1;min-width:0">'+
+      '<div style="font-size:12px;color:var(--teal);margin-bottom:3px;font-weight:600">$'+fmt(amt)+' Credit</div>'+
+      '<div style="font-size:10px;color:var(--text3);margin-bottom:2px">'+(c.description||'No description')+'</div>'+
+      '<div style="font-size:10px;color:var(--text3)">'+(c.date_from||'')+(c.date_to?' \u2013 '+c.date_to:'')+'</div>'+
+      '<div id="'+rid+'" class="ai-explain-text" style="margin-top:6px"></div>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'+
+      '<button class="bsm bsm-lime" onclick="prefillClaim(\''+esc(c.description||'')+'\','+amt+',\''+esc(c.id||'')+'\')">+ Log Claim</button>'+
+      '<button class="bsm bsm-amber" onclick="explainCredit(\''+rid+'\','+amt+',\''+esc(c.description||'')+'\')">&#10022; AI</button>'+
+      '</div></div>';
   }
   list.innerHTML=html;
-}
-async function deleteUpload(id,e){
-  e.stopPropagation();
-  if(!confirm('Delete this invoice period and all charges? Cannot be undone.'))return;
-  await sb.from('invoice_charges').delete().eq('upload_id',id);
-  await sb.from('invoice_uploads').delete().eq('id',id);
-  selectedUploadIds=selectedUploadIds.filter(function(x){return x!==id;});
-  toast('Deleted','ok');await loadHistory();await loadAllCharges();
-}
-function toggleSel(id){var idx=selectedUploadIds.indexOf(id);if(idx>=0)selectedUploadIds.splice(idx,1);else selectedUploadIds.push(id);var row=document.getElementById('hrow-'+id);if(row)row.classList.toggle('selected',selectedUploadIds.indexOf(id)>=0);updateSelCount();}
-function selectAllHist(){selectedUploadIds=allUploads.map(function(u){return u.id;});for(var i=0;i<allUploads.length;i++){var cb=document.getElementById('hcb-'+allUploads[i].id);if(cb)cb.checked=true;var row=document.getElementById('hrow-'+allUploads[i].id);if(row)row.classList.add('selected');}updateSelCount();}
-function deselectAllHist(){selectedUploadIds=[];for(var i=0;i<allUploads.length;i++){var cb=document.getElementById('hcb-'+allUploads[i].id);if(cb)cb.checked=false;var row=document.getElementById('hrow-'+allUploads[i].id);if(row)row.classList.remove('selected');}updateSelCount();}
-function updateSelCount(){setText('selCount',selectedUploadIds.length);}
-function getSelectedIds(){return selectedUploadIds.slice();}
-async function loadSelected(mode){
-  var ids=getSelectedIds();if(!ids.length){toast('Select at least one period','warn');return;}
-  toast('Loading '+ids.length+' period'+(ids.length!==1?'s':'')+'...','info');
-  var charges=[];
-  for(var i=0;i<ids.length;i++){var r=await sb.from('invoice_charges').select('*').eq('upload_id',ids[i]);if(r.data)charges=charges.concat(r.data);}
-  // backfill legacy records
-  for(var i=0;i<charges.length;i++){var c=charges[i];if(!c.disc_type&&c.cat_code&&CAT_MAP[c.cat_code]){c.disc_type=CAT_MAP[c.cat_code].dt;c.charge_type=c.charge_type||CAT_MAP[c.cat_code].ct;}if(!c.disc_type)c.disc_type=c.is_flagged?'OTHER':'INFO';if(!c.charge_type)c.charge_type='BASE_RATE';}
-  activeCharges=charges;
-  buildDynamicChips();
-  var label=ids.length===allUploads.length?'All '+ids.length+' periods':ids.length+' selected period'+(ids.length!==1?'s':'');
-  setText('flagsSource',label);
-  if(mode==='aggregate'){setViewMode('aggregate');renderAggregate(charges,label);renderFlags(charges);goTab('analysis');}
-  else{setViewMode('compare');renderCompare();goTab('analysis');}
-  renderTrends();applyFilters();
-  toast('Loaded '+charges.length+' charges','ok');
+  matchCreditsToLog(autoCredits);
 }
 
-// ── CANVAS CHARTS ─────────────────────────────────────────────────────────────
-function setupCanvas(cv,w,h){var dpr=window.devicePixelRatio||1;cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+'px';cv.style.height=h+'px';var ctx=cv.getContext('2d');ctx.scale(dpr,dpr);return ctx;}
+async function explainCredit(rid,amt,desc){
+  var el=document.getElementById(rid);
+  el.className='ai-explain-text loading';el.textContent='Analyzing...';
+  var openClaims=creditData.filter(function(c){return c.claim_status==='pending'||c.claim_status==='appealed';}).map(function(c){return(c.order_number||'')+(c.notes?' ('+c.notes.slice(0,40)+')':'');}).join('; ');
+  var prompt='You are an ops analyst for Craighill. This is an HLC invoice credit. In 1-2 sentences explain what this credit is likely for and whether it should be logged as a resolved claim in the credit tracker.\n\nCredit: $'+fmt(amt)+'\nDescription: '+desc+'\nOpen claims: '+openClaims+'\n\nStart with "This $'+fmt(amt)+' credit..."';
+  var text=await callAI(prompt,null);
+  el.className='ai-explain-text';el.textContent=text;
+}
 
-function drawDonut(charges){
-  var cv=document.getElementById('dcv'),W=140,R=55,ri=35;
-  var ctx=setupCanvas(cv,W,W);
-  var cars={};for(var i=0;i<charges.length;i++){var n=charges[i].carrier||'Unknown';cars[n]=(cars[n]||0)+charges[i].charge_amount;}
-  var sorted=[];for(var n in cars)sorted.push([n,cars[n]]);sorted.sort(function(a,b){return b[1]-a[1];});
-  var tot=0;for(var i=0;i<sorted.length;i++)tot+=sorted[i][1];
-  var COLS=['#b8ff3c','#00e5ff','#ff2d9b','#ffaa00','#7c3aed','#ff6b35','#50d0a0'];
-  var cx=W/2,cy=W/2,angle=-Math.PI/2;
-  for(var i=0;i<sorted.length;i++){var sl=(sorted[i][1]/tot)*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,angle,angle+sl);ctx.closePath();ctx.fillStyle=COLS[i%COLS.length];ctx.fill();angle+=sl;}
-  ctx.beginPath();ctx.arc(cx,cy,ri,0,Math.PI*2);ctx.fillStyle='#060608';ctx.fill();
-  ctx.fillStyle='#b8ff3c';ctx.font='bold 11px Rajdhani,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(sorted.length+' carriers',cx,cy);
-  var legHtml='';
-  for(var i=0;i<Math.min(sorted.length,7);i++){
-    legHtml+='<div class="li" onclick="filterByCarrier(\''+esc(sorted[i][0])+'\')"><div class="ld" style="background:'+COLS[i%COLS.length]+'"></div><span style="flex:1">'+sorted[i][0]+'</span><span style="font-family:var(--mono);font-size:10px;color:var(--text3)">$'+fmt(sorted[i][1])+'</span><span style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-left:6px">'+(sorted[i][1]/tot*100).toFixed(0)+'%</span></div>';
+function matchCreditsToLog(autoCredits){
+  if(!creditData.length){document.getElementById('matchPanel').style.display='none';return;}
+  var matches=[];
+  for(var i=0;i<autoCredits.length;i++){
+    var ac=autoCredits[i],acAmt=Math.abs(parseFloat(ac.amount||0)),acDesc=(ac.description||'').toLowerCase();
+    for(var j=0;j<creditData.length;j++){
+      var cl=creditData[j];
+      if(cl.claim_status==='resolved')continue;
+      var score=0,reasons=[];
+      if(cl.order_number&&acDesc.indexOf(cl.order_number.toLowerCase())>=0){score+=3;reasons.push('order # match');}
+      if(cl.carrier&&acDesc.indexOf((cl.carrier||'').toLowerCase())>=0){score+=1;reasons.push('carrier keyword');}
+      if(cl.amount&&Math.abs(acAmt-cl.amount)<1){score+=2;reasons.push('amount match ($'+fmt(cl.amount)+')');}
+      var notes=(cl.notes||'').toLowerCase().split(/\s+/).filter(function(w){return w.length>4;});
+      for(var k=0;k<notes.length;k++){if(acDesc.indexOf(notes[k])>=0){score+=1;reasons.push('"'+notes[k]+'"');break;}}
+      if(score>=2)matches.push({ac:ac,cl:cl,score:score,reasons:reasons});
+    }
   }
-  document.getElementById('dleg').innerHTML=legHtml;
-}
-
-function filterByCarrier(carrier){
-  fCarrier=carrier;
-  var chips=document.querySelectorAll('#flt-carrier .chip');
-  chips.forEach(function(c){c.className='chip';var m=c.getAttribute('onclick');if(m&&m.indexOf("'"+carrier+"'")>=0)c.classList.add('on');});
-  applyFilters();goTab('table');toast('Filtered to '+carrier,'info');
-}
-
-function drawDTBar(dts){
-  var cv=document.getElementById('cbcv'),W=cv.parentElement.offsetWidth||400,H=160;
-  var ctx=setupCanvas(cv,W,H);ctx.clearRect(0,0,W,H);
-  var entries=[];for(var k in dts)entries.push([k,dts[k]]);if(!entries.length)return;
-  entries.sort(function(a,b){return b[1].cost-a[1].cost;});
-  var maxC=0;for(var i=0;i<entries.length;i++)if(entries[i][1].cost>maxC)maxC=entries[i][1].cost;
-  var bw=Math.floor((W-40)/entries.length)-6;
-  var DCOLS={DUP:'#ff2d9b',RATE:'#ffaa00',DIM:'#ffaa00',ACC:'#ffaa00','SVC-FAIL':'#ff2d55','SVC-MISMATCH':'#00e5ff','TAX-DUTY':'#7c3aed',DATA:'#00d4aa',UNAUTH:'#ff2d9b',OTHER:'#44445a',INFO:'#44445a'};
-  for(var i=0;i<entries.length;i++){
-    var k=entries[i][0],d=entries[i][1],col=DCOLS[k]||'#44445a';
-    var bh=maxC>0?Math.floor((d.cost/maxC)*(H-45)):0,x=20+i*(bw+6),y=H-30-bh;
-    ctx.shadowColor=col;ctx.shadowBlur=4;ctx.fillStyle=col+'33';ctx.fillRect(x,y,bw,bh);ctx.shadowBlur=0;
-    ctx.strokeStyle=col;ctx.lineWidth=1;ctx.strokeRect(x,y,bw,bh);
-    ctx.fillStyle='#44445a';ctx.font='9px Share Tech Mono,monospace';ctx.textAlign='center';ctx.fillText(k.slice(0,9),x+bw/2,H-16);
-    ctx.fillStyle=col;ctx.font='bold 12px Rajdhani,sans-serif';ctx.fillText(d.count,x+bw/2,y-4);
+  var seen={},best=[];
+  matches.sort(function(a,b){return b.score-a.score;});
+  for(var i=0;i<matches.length;i++){if(!seen[matches[i].cl.id]){seen[matches[i].cl.id]=true;best.push(matches[i]);}}
+  var mp=document.getElementById('matchPanel'),ml=document.getElementById('matchList');
+  if(!best.length){mp.style.display='none';return;}
+  mp.style.display='block';
+  var CONF=['--','LOW','MEDIUM','HIGH','VERY HIGH'];
+  var html='';
+  for(var i=0;i<best.length;i++){
+    var m=best[i],acAmt=Math.abs(parseFloat(m.ac.amount||0)),conf=CONF[Math.min(m.score,4)];
+    html+='<div class="match-card">'+
+      '<div class="match-info">'+
+      '<div class="match-title">Possible match \u2014 $'+fmt(acAmt)+' invoice credit \u2194 logged claim $'+fmt(m.cl.amount||0)+'</div>'+
+      '<div class="match-detail">'+
+      '<strong style="color:var(--text2)">Invoice:</strong> '+(m.ac.description||'No description')+'<br>'+
+      '<strong style="color:var(--text2)">Claim:</strong> '+(m.cl.order_number||'no order')+(m.cl.notes?' \u00b7 '+m.cl.notes.slice(0,80):'')+'<br>'+
+      '<strong style="color:var(--text2)">Signals:</strong> '+m.reasons.join(', ')+' \u00b7 Confidence: <strong style="color:var(--amber)">'+conf+'</strong>'+
+      '</div></div>'+
+      '<div class="match-actions">'+
+      '<button class="bsm bsm-amber" onclick="confirmMatch(\''+m.cl.id+'\',this)">\u2713 Confirm Resolved</button>'+
+      '<button class="bsm bsm-lime" onclick="explainMatch(this,\''+esc(m.ac.description||'')+'\',\''+esc((m.cl.notes||'').slice(0,80))+'\','+acAmt+','+(m.cl.amount||0)+')">&#10022; AI Explain</button>'+
+      '<button class="bsm bsm-gray" onclick="this.closest(\'.match-card\').remove()">\u00d7 Dismiss</button>'+
+      '</div></div>'+
+      '<div class="ai-explain-wrap" id="mexpl-'+i+'" style="display:none"></div>';
   }
+  ml.innerHTML=html;
 }
 
-function drawCTBar(charges){
-  var cv=document.getElementById('ctcv'),W=cv.parentElement.offsetWidth||400,H=160;
-  var ctx=setupCanvas(cv,W,H);ctx.clearRect(0,0,W,H);
-  var cts={};for(var i=0;i<charges.length;i++){var ct=charges[i].charge_type||'UNKNOWN';cts[ct]=(cts[ct]||0)+charges[i].charge_amount;}
-  var sorted=[];for(var k in cts)sorted.push([k,cts[k]]);sorted.sort(function(a,b){return b[1]-a[1];});sorted=sorted.slice(0,6);
-  if(!sorted.length)return;
-  var maxV=sorted[0][1],bH=Math.floor((H-10)/sorted.length)-3,lW=90;
-  var COLS=['#b8ff3c','#00e5ff','#ff2d9b','#ffaa00','#7c3aed','#ff6b35'];
-  for(var i=0;i<sorted.length;i++){
-    var y=5+i*(bH+3),col=COLS[i%COLS.length],bLen=Math.floor(sorted[i][1]/maxV*(W-lW-60));
-    ctx.fillStyle='#44445a';ctx.font='10px Share Tech Mono,monospace';ctx.textAlign='right';ctx.fillText(sorted[i][0].slice(0,13),lW-4,y+bH/2+3);
-    ctx.fillStyle=col+'22';ctx.fillRect(lW,y,bLen,bH);ctx.strokeStyle=col;ctx.lineWidth=1;ctx.strokeRect(lW,y,bLen,bH);
-    ctx.fillStyle=col;ctx.font='bold 11px Rajdhani,sans-serif';ctx.textAlign='left';ctx.fillText('$'+fmt(sorted[i][1]),lW+bLen+4,y+bH/2+3);
+async function explainMatch(btn,invDesc,claimNotes,invAmt,claimAmt){
+  var idx=btn.closest('.match-card').nextElementSibling;
+  if(!idx)return;
+  idx.style.display='';
+  idx.innerHTML='<div class="ai-explain-text loading">Analyzing match...</div>';
+  var prompt='You are an ops analyst for Craighill. Explain in 1-2 sentences why this invoice credit likely matches this logged claim, and what the recommended action is.\n\nInvoice credit: $'+fmt(invAmt)+' \u2014 "'+invDesc+'"\nLogged claim: $'+fmt(claimAmt)+' \u2014 notes: "'+claimNotes+'"\n\nBe direct and specific.';
+  var text=await callAI(prompt,null);
+  idx.innerHTML='<div class="ai-explain-text">'+text+'</div>';
+}
+
+async function confirmMatch(claimId,btn){
+  btn.disabled=true;btn.textContent='Saving...';
+  var existing=creditData.find(function(c){return c.id===claimId;})||{};
+  await sb.from('credit_log').update({claim_status:'resolved',updated_at:new Date().toISOString(),notes:(existing.notes||'')+' [Matched '+new Date().toISOString().slice(0,10)+']'}).eq('id',claimId);
+  toast('Marked resolved','ok');btn.closest('.match-card').remove();loadCredits();
+}
+
+function prefillClaim(desc,amt,invoiceId){
+  goTab('credits');
+  document.getElementById('cr-a').value=amt;
+  document.getElementById('cr-lid').value=invoiceId;
+  document.getElementById('cr-n').value='Auto-detected: '+desc;
+  document.getElementById('cr-p').value=periodLabel();
+  toast('Prefilled \u2014 add order # and save','info');
+}
+
+async function saveClaim(){
+  var amount=parseFloat(document.getElementById('cr-a').value);
+  if(!amount||isNaN(amount)){toast('Amount required','err');return;}
+  var r=await sb.from('credit_log').insert({order_number:gv('cr-o')||null,carrier:gv('cr-c')||null,amount:amount,contact_name:gv('cr-cn')||null,contact_email:gv('cr-em')||null,invoice_period:gv('cr-p')||null,claim_status:gv('cr-st'),notes:gv('cr-n')||null,created_by:document.getElementById('usel').value,linked_invoice_id:gv('cr-lid')||null});
+  if(r.error){toast('Save failed: '+r.error.message,'err');return;}
+  toast('Claim saved','ok');clearClaim();loadCredits();
+}
+
+function renderCredits(){
+  var tb=document.getElementById('crTb'),em=document.getElementById('crE');
+  setText('cnt-cr',creditData.length);
+  if(!creditData.length){tb.innerHTML='';em.style.display='block';setText('crTotal','$0.00');return;}
+  em.style.display='none';
+  var tot=0,rec=0,open=0;
+  for(var i=0;i<creditData.length;i++){tot+=creditData[i].amount||0;if(creditData[i].claim_status==='approved'||creditData[i].claim_status==='resolved')rec+=creditData[i].amount||0;if(creditData[i].claim_status==='pending'||creditData[i].claim_status==='appealed')open++;}
+  setText('crTotal','$'+fmt(tot)+' total exposure');
+  setText('cr-exp','$'+fmt(tot));setText('cr-rec','$'+fmt(rec));
+  setText('cr-rate',tot>0?(rec/tot*100).toFixed(0)+'%':'0%');setText('cr-open',open);
+  var SC={pending:'ba',approved:'bl',denied:'bm',appealed:'bc',resolved:'bt'};
+  var html='';
+  for(var i=0;i<creditData.length;i++){
+    var c=creditData[i],cid='crexpl'+i;
+    html+='<tr>'+
+      '<td style="font-family:var(--mono)">'+(c.order_number||'\u2014')+'</td>'+
+      '<td style="color:var(--text3);font-size:10px">'+(c.invoice_period||'\u2014')+'</td>'+
+      '<td>'+(c.carrier||'\u2014')+'</td>'+
+      '<td style="font-family:var(--mono);color:var(--magenta)">$'+fmt(c.amount||0)+'</td>'+
+      '<td style="font-size:10px">'+(c.contact_name||'\u2014')+'</td>'+
+      '<td><span class="badge '+(SC[c.claim_status]||'bg')+'">'+c.claim_status+'</span></td>'+
+      '<td>'+(c.linked_invoice_id?'<span class="badge bt" style="font-size:9px">matched</span>':'<span style="color:var(--text3);font-size:9px">\u2014</span>')+'</td>'+
+      '<td style="font-size:10px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(c.notes||'')+'">'+(c.notes||'\u2014')+'</td>'+
+      '<td style="color:var(--text3);font-size:10px">'+(c.created_by||'\u2014')+'</td>'+
+      '<td><button class="bsm bsm-lime" onclick="explainClaim(\''+cid+'\',\''+esc(c.order_number||'')+'\',\''+esc(c.carrier||'')+'\','+(c.amount||0)+',\''+esc(c.claim_status)+'\',\''+esc((c.notes||'').slice(0,100))+'\')" style="font-size:9px;padding:2px 7px">&#10022;</button></td>'+
+      '<td><button class="bsm bsm-gray" onclick="cycleStatus(\''+c.id+'\',\''+c.claim_status+'\')">&#8594;</button></td>'+
+      '</tr>'+
+      '<tr id="erow-'+cid+'" style="display:none"><td colspan="11" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+cid+'" class="ai-explain-text"></div></td></tr>';
   }
+  tb.innerHTML=html;
+  var autoCredits=invData.filter(function(c){var a=parseFloat(c.amount||0);return a<0||(c.charge_on_invoice||'').toLowerCase()==='credit';});
+  if(autoCredits.length)matchCreditsToLog(autoCredits);
 }
 
-function drawCountryBar(charges){
-  var cv=document.getElementById('cntrycv'),W=cv.parentElement.offsetWidth||400,H=160;
-  var ctx=setupCanvas(cv,W,H);ctx.clearRect(0,0,W,H);
-  var ctries={};for(var i=0;i<charges.length;i++){var c=charges[i].destination_country||'US';ctries[c]=(ctries[c]||0)+charges[i].charge_amount;}
-  var sorted=[];for(var k in ctries)sorted.push([k,ctries[k]]);sorted.sort(function(a,b){return b[1]-a[1];});sorted=sorted.slice(0,8);
-  if(!sorted.length)return;
-  var maxV=sorted[0][1],bH=Math.floor((H-10)/sorted.length)-2,lW=38;
-  for(var i=0;i<sorted.length;i++){
-    var y=4+i*(bH+2),col='#00e5ff',bLen=Math.floor(sorted[i][1]/maxV*(W-lW-65));
-    ctx.fillStyle='#44445a';ctx.font='10px Share Tech Mono,monospace';ctx.textAlign='right';ctx.fillText(sorted[i][0].slice(0,4),lW-4,y+bH/2+3);
-    ctx.fillStyle=col+'22';ctx.fillRect(lW,y,bLen,bH);ctx.strokeStyle=col;ctx.lineWidth=1;ctx.strokeRect(lW,y,bLen,bH);
-    ctx.fillStyle=col;ctx.font='bold 11px Rajdhani,sans-serif';ctx.textAlign='left';ctx.fillText('$'+fmt(sorted[i][1]),lW+bLen+4,y+bH/2+3);
-  }
+async function explainClaim(rid,order,carrier,amt,status,notes){
+  var erow=document.getElementById('erow-'+rid),el=document.getElementById(rid);
+  if(erow.style.display!=='none'&&el.textContent){erow.style.display='none';return;}
+  erow.style.display='';el.className='ai-explain-text loading';el.textContent='Analyzing...';
+  var prompt='You are an ops analyst for Craighill. In 1-2 sentences summarize the status of this credit claim and recommend the best next action.\n\nOrder: '+(order||'unknown')+' | Carrier: '+(carrier||'unknown')+' | Amount: $'+fmt(amt)+' | Status: '+status+' | Notes: '+notes+'\n\nBe specific.';
+  var text=await callAI(prompt,null);
+  el.className='ai-explain-text';el.textContent=text;
 }
 
-function drawLine(cv,labels,data,color){
-  if(!cv)return;
-  var W=cv.parentElement?cv.parentElement.offsetWidth||600:600,H=parseInt(cv.style.height)||180;
-  var ctx=setupCanvas(cv,W,H);ctx.clearRect(0,0,W,H);
-  if(!data.length)return;
-  var pad={t:20,r:20,b:36,l:65},iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
-  var maxV=0;for(var i=0;i<data.length;i++)if(data[i]>maxV)maxV=data[i];if(!maxV)maxV=1;
-  ctx.strokeStyle='#1e1e2e';ctx.lineWidth=1;
-  for(var i=0;i<=4;i++){var y=pad.t+iH-(i/4)*iH;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+iW,y);ctx.stroke();ctx.fillStyle='#44445a';ctx.font='11px Share Tech Mono,monospace';ctx.textAlign='right';ctx.fillText('$'+Math.round(maxV*i/4).toLocaleString(),pad.l-4,y+3);}
-  ctx.beginPath();
-  for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1||1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
-  ctx.lineTo(pad.l+iW,pad.t+iH);ctx.lineTo(pad.l,pad.t+iH);ctx.closePath();
-  var g=ctx.createLinearGradient(0,pad.t,0,pad.t+iH);g.addColorStop(0,color+'33');g.addColorStop(1,color+'05');ctx.fillStyle=g;ctx.fill();
-  ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=6;
-  for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1||1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
-  ctx.stroke();ctx.shadowBlur=0;
-  for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1||1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=8;ctx.fill();ctx.shadowBlur=0;}
-  ctx.fillStyle='#44445a';ctx.font='11px Share Tech Mono,monospace';ctx.textAlign='center';
-  for(var i=0;i<labels.length;i++){var x=pad.l+i/(labels.length-1||1)*iW;ctx.fillText(labels[i].slice(5)||labels[i],x,H-8);}
+async function cycleStatus(id,cur){
+  var s=['pending','approved','denied','appealed','resolved'];
+  var next=s[(s.indexOf(cur)+1)%s.length];
+  await sb.from('credit_log').update({claim_status:next,updated_at:new Date().toISOString()}).eq('id',id);
+  toast('Status \u2192 '+next,'info');loadCredits();
 }
+function clearClaim(){['cr-o','cr-c','cr-a','cr-cn','cr-em','cr-p','cr-n','cr-lid'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});document.getElementById('cr-st').value='pending';}
 
-function drawDualLine(cv,labels,data1,data2,color1,color2,label1,label2){
-  if(!cv)return;
-  var W=cv.parentElement?cv.parentElement.offsetWidth||600:600,H=parseInt(cv.style.height)||200;
-  var ctx=setupCanvas(cv,W,H);ctx.clearRect(0,0,W,H);
-  var pad={t:28,r:20,b:36,l:75},iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
-  if(labels.length<2){ctx.fillStyle='#44445a';ctx.font='12px Share Tech Mono,monospace';ctx.textAlign='center';ctx.fillText('Need 2+ periods for trend',W/2,H/2);return;}
-  var all=data1.concat(data2),maxV=0;for(var i=0;i<all.length;i++)if(all[i]>maxV)maxV=all[i];if(!maxV)maxV=1;
-  ctx.strokeStyle='#1e1e2e';ctx.lineWidth=1;
-  for(var i=0;i<=4;i++){var y=pad.t+iH-(i/4)*iH;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+iW,y);ctx.stroke();ctx.fillStyle='#44445a';ctx.font='11px Share Tech Mono,monospace';ctx.textAlign='right';ctx.fillText('$'+Math.round(maxV*i/4).toLocaleString(),pad.l-4,y+3);}
-  function series(data,color){
-    if(data.length<2)return;
-    ctx.beginPath();for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
-    ctx.lineTo(pad.l+(data.length-1)/(data.length-1)*iW,pad.t+iH);ctx.lineTo(pad.l,pad.t+iH);ctx.closePath();
-    var g=ctx.createLinearGradient(0,pad.t,0,pad.t+iH);g.addColorStop(0,color+'22');g.addColorStop(1,color+'03');ctx.fillStyle=g;ctx.fill();
-    ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=6;
-    for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
-    ctx.stroke();ctx.shadowBlur=0;
-    for(var i=0;i<data.length;i++){var x=pad.l+i/(data.length-1)*iW,y=pad.t+iH-(data[i]/maxV)*iH;ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=8;ctx.fill();ctx.shadowBlur=0;}
-  }
-  series(data1,color1);series(data2,color2);
-  ctx.fillStyle='#44445a';ctx.font='11px Share Tech Mono,monospace';ctx.textAlign='center';
-  for(var i=0;i<labels.length;i++){var x=pad.l+i/(labels.length-1||1)*iW;ctx.fillText(labels[i].slice(5)||labels[i],x,H-8);}
-  ctx.font='10px Share Tech Mono,monospace';ctx.textAlign='left';
-  ctx.fillStyle=color1;ctx.fillRect(pad.l,6,16,6);ctx.fillStyle='#88889a';ctx.fillText(label1,pad.l+20,13);
-  ctx.fillStyle=color2;ctx.fillRect(pad.l+120,6,16,6);ctx.fillStyle='#88889a';ctx.fillText(label2,pad.l+140,13);
-}
-
-function drawHBar(id,labels,data,color){
-  var cv=document.getElementById(id);if(!cv)return;
-  var W=cv.parentElement.offsetWidth||400,H=parseInt(cv.style.height)||200;
-  var ctx=setupCanvas(cv,W,H);ctx.clearRect(0,0,W,H);
-  var maxV=0;for(var i=0;i<data.length;i++)if(data[i]>maxV)maxV=data[i];if(!maxV)maxV=1;
-  var bH=Math.floor((H-20)/labels.length)-4,lW=82;
-  for(var i=0;i<labels.length;i++){
-    var y=10+i*(bH+4),bLen=Math.floor((data[i]||0)/maxV*(W-lW-55));
-    ctx.fillStyle='#66668a';ctx.font='11px Share Tech Mono,monospace';ctx.textAlign='right';ctx.fillText(labels[i].slice(0,10),lW-6,y+bH/2+4);
-    ctx.shadowColor=color;ctx.shadowBlur=4;ctx.fillStyle=color+'22';ctx.fillRect(lW,y,bLen,bH);ctx.strokeStyle=color;ctx.lineWidth=1;ctx.strokeRect(lW,y,bLen,bH);ctx.shadowBlur=0;
-    ctx.fillStyle=color;ctx.font='bold 12px Rajdhani,sans-serif';ctx.textAlign='left';ctx.fillText('$'+data[i],lW+bLen+6,y+bH/2+4);
-  }
-}
-
-// ── UTILS ─────────────────────────────────────────────────────────────────────
-function goTab(n){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');if(n==='table')applyFilters();if(n==='trends')renderTrends();}
+function goTab(n){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');}
 function setText(id,val){var el=document.getElementById(id);if(el)el.innerHTML=String(val);}
 function gv(id){return document.getElementById(id)?document.getElementById(id).value:'';}
 function fmt(n){return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtK(n){if(n>=10000)return(n/1000).toFixed(1)+'k';return n.toFixed(0);}
 function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"');}
-function prog(lbl,pct){document.getElementById('pw').style.display='block';document.getElementById('pl').textContent=lbl;document.getElementById('pf').style.width=pct+'%';}
-function hideProg(){document.getElementById('pw').style.display='none';document.getElementById('pf').style.width='0%';}
-function toast(msg,type){if(!type)type='info';var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(t._to);t._to=setTimeout(function(){t.classList.remove('show');},3500);}
+function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'info')+' show';clearTimeout(t._to);t._to=setTimeout(function(){t.classList.remove('show');},3500);}
 
 init();
 </script>
