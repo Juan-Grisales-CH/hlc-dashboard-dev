@@ -1264,15 +1264,22 @@ async function runCompare(){
   var bFrom=document.getElementById('cmp-b-from').value,bTo=document.getElementById('cmp-b-to').value;
   if(!aFrom||!aTo||!bFrom||!bTo){toast('Set both date ranges','warn');return;}
   var res=document.getElementById('cmpResults');
-  res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Loading...</div>';
+  res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Loading — fetching full dataset for both periods...</div>';
   document.getElementById('cmpAiBtn').style.display='none';
   document.getElementById('cmpAiResult').style.display='none';
-  var rA=await sb.from('rails_shipping_charges').select('*').gte('date_from',aFrom).lte('date_to',aTo).range(0,4999);
-  var rOA=await sb.from('rails_order_charges_deduped').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',aFrom).lte('date_to',aTo).range(0,4999);
-  var rB=await sb.from('rails_shipping_charges').select('*').gte('date_from',bFrom).lte('date_to',bTo).range(0,4999);
-  var rOB=await sb.from('rails_order_charges_deduped').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',bFrom).lte('date_to',bTo).range(0,4999);
-  cmpDataA={ship:rA.data||[],orders:rOA.data||[],label:aFrom+' to '+aTo};
-  cmpDataB={ship:rB.data||[],orders:rOB.data||[],label:bFrom+' to '+bTo};
+  // Use fetchAll (paginated, matches Overview) instead of range(0,4999) — fixes number mismatch
+  var fA={gte_from:aFrom,lte_to:aTo,q:'custom'};
+  var fB={gte_from:bFrom,lte_to:bTo,q:'custom'};
+  res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Fetching Period A shipping...</div>';
+  var shipA=await fetchAll('rails_shipping_charges',fA);
+  res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Fetching Period A order charges...</div>';
+  var ordA=await fetchAll('rails_order_charges_deduped',fA);
+  res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Fetching Period B shipping...</div>';
+  var shipB=await fetchAll('rails_shipping_charges',fB);
+  res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Fetching Period B order charges...</div>';
+  var ordB=await fetchAll('rails_order_charges_deduped',fB);
+  cmpDataA={ship:shipA,orders:ordA,label:aFrom+' to '+aTo};
+  cmpDataB={ship:shipB,orders:ordB,label:bFrom+' to '+bTo};
   function cs(d){var t=0,p=0,cars={},intl=0,u={};for(var i=0;i<d.ship.length;i++){t+=parseFloat(d.ship[i].charge_amount||0);var c=d.ship[i].carrier||'Unknown';cars[c]=(cars[c]||0)+parseFloat(d.ship[i].charge_amount||0);if(d.ship[i].ship_to_country&&d.ship[i].ship_to_country!=='US')intl++;}for(var i=0;i<d.orders.length;i++){p+=parseFloat(d.orders[i].initial_pick_fee_amount||0)+parseFloat(d.orders[i].additional_pick_fee_amount||0);if(d.orders[i].order_number)u[d.orders[i].order_number]=true;}var oc=Object.keys(u).length;return{shipTot:t,pickTot:p,ordCnt:oc,intl:intl,carriers:cars,avg:oc>0?t/oc:0,topCarrier:Object.keys(cars).sort(function(a,b){return cars[b]-cars[a];})[0]||'--'};}
   var sA=cs(cmpDataA),sB=cs(cmpDataB);
   var COLS=['#b8ff3c','#00e5ff'];
