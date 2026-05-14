@@ -694,13 +694,10 @@ async function loadCredits(){
 // ── OVERVIEW ──────────────────────────────────────────────────────────────────
 function renderOverview(){
   var shipTotal=0;for(var i=0;i<shipData.length;i++)shipTotal+=parseFloat(shipData[i].charge_amount||0);
-  // Deduplicate by order_number before summing pick fees — same order can appear on
-  // multiple invoice periods (cross-invoice duplicates). Take the first occurrence only.
-  var pickTotal=0,seenOrders={};
+  // Sum pick fees — trust rails_order_charges_deduped view for deduplication
+  // The view handles same-invoice duplicates; cross-invoice occurrences are legitimate charges
+  var pickTotal=0;
   for(var i=0;i<ordData.length;i++){
-    var on=ordData[i].order_number;
-    if(on&&seenOrders[on])continue;
-    if(on)seenOrders[on]=true;
     pickTotal+=parseFloat(ordData[i].initial_pick_fee_amount||0);
     pickTotal+=parseFloat(ordData[i].additional_pick_fee_amount||0);
   }
@@ -790,7 +787,7 @@ async function generateNarrative(){
   narr.className='ai-narrative loading';narr.textContent='Analyzing '+periodLabel()+' data...';
 
   var shipTotal=0;for(var i=0;i<shipData.length;i++)shipTotal+=parseFloat(shipData[i].charge_amount||0);
-  var pickTotal=0,_seenN={};for(var i=0;i<ordData.length;i++){var _on=ordData[i].order_number;if(_on&&_seenN[_on])continue;if(_on)_seenN[_on]=true;pickTotal+=parseFloat(ordData[i].initial_pick_fee_amount||0)+parseFloat(ordData[i].additional_pick_fee_amount||0);}
+  var pickTotal=0;for(var i=0;i<ordData.length;i++){pickTotal+=parseFloat(ordData[i].initial_pick_fee_amount||0)+parseFloat(ordData[i].additional_pick_fee_amount||0);}
   var overhead=0,credits=0;for(var i=0;i<invData.length;i++){var a=parseFloat(invData[i].amount||0);if(a<0)credits+=Math.abs(a);else overhead+=a;}
   var uniqOrds={};for(var i=0;i<ordData.length;i++)if(ordData[i].order_number)uniqOrds[ordData[i].order_number]=true;
   var ordCount=Object.keys(uniqOrds).length;
@@ -915,6 +912,7 @@ function renderOrdPage(){
     var c=page[i];
     var iP=parseFloat(c.initial_pick_fee_amount||0),aP=parseFloat(c.additional_pick_fee_amount||0);
     var orid='or'+(start+i);
+    _initOrdTags(orid,c);
     window._ordRows[orid]={order:c.order_number||'',carrier:c.carrier||'',pkg:c.package_type||'',ip:iP,ap:aP,city:(c.recipient_city||'')+(c.recipient_state?','+c.recipient_state:''),country:c.recipient_country||'US'};
     var aQ=parseFloat(c.additional_pick_fee_qty||0),isHighPick=aQ>OUTLIER_PICK_THRESHOLD;
     var dims=c.package_length?c.package_length+'×'+c.package_width+'×'+c.package_height:'—';
@@ -954,6 +952,7 @@ function renderInvoice(){
   for(var i=0;i<page.length;i++){
     var c=page[i],amt=parseFloat(c.amount||0),isCredit=amt<0||(c.charge_on_invoice||'').toLowerCase()==='credit';
     var rid='ir'+(start+i);
+    _initInvTags(rid,c);
     html+='<tr>'+
       '<td style="color:var(--text3);font-size:10px">'+(c.date_from||'')+(c.date_to?' – '+c.date_to:'')+'</td>'+
       '<td style="font-family:var(--mono);font-size:9px;color:var(--text3)" title="Invoice ID: '+(c.invoice_id||'')+'">'+(c.invoice_id?c.invoice_id.slice(0,8)+'…':'—')+'</td>'+
@@ -1274,7 +1273,7 @@ async function runCompare(){
   var rOB=await sb.from('rails_order_charges_deduped').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',bFrom).lte('date_to',bTo).range(0,4999);
   cmpDataA={ship:rA.data||[],orders:rOA.data||[],label:aFrom+' to '+aTo};
   cmpDataB={ship:rB.data||[],orders:rOB.data||[],label:bFrom+' to '+bTo};
-  function cs(d){var t=0,p=0,cars={},intl=0,u={},_sn={};for(var i=0;i<d.ship.length;i++){t+=parseFloat(d.ship[i].charge_amount||0);var c=d.ship[i].carrier||'Unknown';cars[c]=(cars[c]||0)+parseFloat(d.ship[i].charge_amount||0);if(d.ship[i].ship_to_country&&d.ship[i].ship_to_country!=='US')intl++;}for(var i=0;i<d.orders.length;i++){var _on=d.orders[i].order_number;if(_on&&_sn[_on])continue;if(_on)_sn[_on]=true;p+=parseFloat(d.orders[i].initial_pick_fee_amount||0)+parseFloat(d.orders[i].additional_pick_fee_amount||0);if(d.orders[i].order_number)u[d.orders[i].order_number]=true;}var oc=Object.keys(u).length;return{shipTot:t,pickTot:p,ordCnt:oc,intl:intl,carriers:cars,avg:oc>0?t/oc:0,topCarrier:Object.keys(cars).sort(function(a,b){return cars[b]-cars[a];})[0]||'--'};}
+  function cs(d){var t=0,p=0,cars={},intl=0,u={};for(var i=0;i<d.ship.length;i++){t+=parseFloat(d.ship[i].charge_amount||0);var c=d.ship[i].carrier||'Unknown';cars[c]=(cars[c]||0)+parseFloat(d.ship[i].charge_amount||0);if(d.ship[i].ship_to_country&&d.ship[i].ship_to_country!=='US')intl++;}for(var i=0;i<d.orders.length;i++){p+=parseFloat(d.orders[i].initial_pick_fee_amount||0)+parseFloat(d.orders[i].additional_pick_fee_amount||0);if(d.orders[i].order_number)u[d.orders[i].order_number]=true;}var oc=Object.keys(u).length;return{shipTot:t,pickTot:p,ordCnt:oc,intl:intl,carriers:cars,avg:oc>0?t/oc:0,topCarrier:Object.keys(cars).sort(function(a,b){return cars[b]-cars[a];})[0]||'--'};}
   var sA=cs(cmpDataA),sB=cs(cmpDataB);
   var COLS=['#b8ff3c','#00e5ff'];
   var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">';
@@ -1298,7 +1297,7 @@ async function runCompareAI(){
   if(!cmpDataA||!cmpDataB){toast('Run comparison first','warn');return;}
   btn.disabled=true;btn.textContent='Generating...';
   res.style.display='block';txt.className='ai-narrative loading';txt.textContent='Analyzing...';
-  function s(d){var t=0,p=0,u={},_sn={};for(var i=0;i<d.ship.length;i++)t+=parseFloat(d.ship[i].charge_amount||0);for(var i=0;i<d.orders.length;i++){var _on=d.orders[i].order_number;if(_on&&_sn[_on])continue;if(_on)_sn[_on]=true;p+=parseFloat(d.orders[i].initial_pick_fee_amount||0)+parseFloat(d.orders[i].additional_pick_fee_amount||0);if(d.orders[i].order_number)u[d.orders[i].order_number]=true;}return{ship:t,pick:p,ords:Object.keys(u).length};}
+  function s(d){var t=0,p=0,u={};for(var i=0;i<d.ship.length;i++)t+=parseFloat(d.ship[i].charge_amount||0);for(var i=0;i<d.orders.length;i++){p+=parseFloat(d.orders[i].initial_pick_fee_amount||0)+parseFloat(d.orders[i].additional_pick_fee_amount||0);if(d.orders[i].order_number)u[d.orders[i].order_number]=true;}return{ship:t,pick:p,ords:Object.keys(u).length};}
   var sA=s(cmpDataA),sB=s(cmpDataB);
   var prompt='You are an ops analyst for Craighill (NYC design brand, 3PL is HLC Brooklyn). Write 3-4 sentences comparing these two invoice periods. Highlight cost changes, volume changes, and anything worth flagging.\n\nPeriod A ('+cmpDataA.label+'): shipping $'+fmt(sA.ship)+', pick fees $'+fmt(sA.pick)+', orders '+sA.ords+'\nPeriod B ('+cmpDataB.label+'): shipping $'+fmt(sB.ship)+', pick fees $'+fmt(sB.pick)+', orders '+sB.ords+'\n\nNo bullets. Write as a concise ops brief.';
   var text=await callAI(prompt,function(model){document.getElementById('cmpAiModel').textContent=model.indexOf('sonnet')>=0?'Sonnet 4':'Haiku 3.5';});
@@ -1424,6 +1423,70 @@ var CT_DESC={
 var _invTags={},_ordTags={};
 function setTag(store,rid,axis,val){if(!store[rid])store[rid]={};store[rid][axis]=val;}
 function getTag(store,rid,axis){return(store[rid]&&store[rid][axis])||'';}
+
+// ── AUTO-DETECT TAXONOMY FROM ROW DATA ───────────────────────────────────────
+// CT inference for Invoice Charges rows (based on charge_on_invoice + description)
+function _autoCtInv(row){
+  var type=(row.charge_on_invoice||'').toLowerCase();
+  var desc=(row.description||'').toLowerCase();
+  var amt=parseFloat(row.amount||0);
+  if(type==='credit'||amt<0)return'RETURN'; // credits often are return/refund credits
+  if(desc.indexOf('storage')>=0||desc.indexOf('account management')>=0||desc.indexOf('account mgmt')>=0)return'UNKNOWN'; // overhead
+  if(desc.indexOf('flavorcloud')>=0||desc.indexOf('flavor cloud')>=0)return'FLAVORCLOUD';
+  if(desc.indexOf('fuel')>=0)return'FUEL';
+  if(desc.indexOf('residential')>=0)return'RESIDENTIAL';
+  if(desc.indexOf('dim')>=0||desc.indexOf('dimensional')>=0)return'DIM_WEIGHT';
+  if(desc.indexOf('oversize')>=0||desc.indexOf('over size')>=0)return'OVERSIZE';
+  if(desc.indexOf('signature')>=0)return'SIGNATURE';
+  if(desc.indexOf('address')>=0&&desc.indexOf('correct')>=0)return'ADDRESS_CORR';
+  if(desc.indexOf('remote')>=0)return'REMOTE';
+  if(desc.indexOf('insurance')>=0)return'INSURANCE';
+  if(desc.indexOf('duty')>=0||desc.indexOf('customs')>=0||desc.indexOf('import')>=0)return'CUSTOMS_DUTY';
+  if(desc.indexOf('pick')>=0||type.indexOf('pick')>=0)return'PICK_UNIT';
+  if(desc.indexOf('hourly')>=0)return'PICK_HOURLY';
+  if(type.indexOf('base')>=0||type.indexOf('rate')>=0)return'BASE_RATE';
+  return'UNKNOWN';
+}
+// DT inference for Invoice Charges rows
+function _autoDtInv(row){
+  var desc=(row.description||'').toLowerCase();
+  var amt=parseFloat(row.amount||0);
+  if(amt<0||(row.charge_on_invoice||'').toLowerCase()==='credit')return'INFO'; // credits are informational
+  if(desc.indexOf('duplicate')>=0||desc.indexOf('dup')>=0)return'DUP';
+  if(desc.indexOf('correction')>=0||desc.indexOf('adjust')>=0)return'DATA';
+  if(desc.indexOf('duty')>=0||desc.indexOf('customs')>=0||desc.indexOf('vat')>=0||desc.indexOf('tax')>=0)return'TAX-DUTY';
+  return'INFO'; // default — informational, no action needed
+}
+// CT inference for Order Charges rows
+function _autoCtOrd(row){
+  var aQ=parseFloat(row.additional_pick_fee_qty||0);
+  var carrier=(row.carrier||'').toLowerCase();
+  var svc=(row.service_level||'').toLowerCase();
+  if(aQ>OUTLIER_PICK_THRESHOLD)return'PICK_HOURLY';
+  if(carrier.indexOf('flavorcloud')>=0||carrier.indexOf('flavor')>=0)return'FLAVORCLOUD';
+  if(svc.indexOf('residential')>=0)return'RESIDENTIAL';
+  if(svc.indexOf('standard')>=0||svc.indexOf('ground')>=0||svc.indexOf('express')>=0||svc.indexOf('priority')>=0)return'BASE_RATE';
+  return'PICK_UNIT'; // order charges are fundamentally pick fees
+}
+// DT inference for Order Charges rows
+function _autoDtOrd(row){
+  var aQ=parseFloat(row.additional_pick_fee_qty||0);
+  var carrier=(row.carrier||'').toLowerCase();
+  if(aQ>OUTLIER_PICK_THRESHOLD)return'ACC'; // accessorial — high pick count warrants review
+  if(carrier.indexOf('flavorcloud')>=0)return'INFO'; // FlavorCloud is expected for intl
+  return'INFO';
+}
+// Init tags for a row if not already set (auto-detect on first render)
+function _initInvTags(rid,row){
+  if(!window._invTags[rid]){
+    window._invTags[rid]={dt:_autoDtInv(row),ct:_autoCtInv(row)};
+  }
+}
+function _initOrdTags(rid,row){
+  if(!window._ordTags[rid]){
+    window._ordTags[rid]={dt:_autoDtOrd(row),ct:_autoCtOrd(row)};
+  }
+}
 function _dtSel(storeKey,rid){
   var cur=(window[storeKey]&&window[storeKey][rid]&&window[storeKey][rid].dt)||'';
   var isSel=cur&&cur!=='—';
