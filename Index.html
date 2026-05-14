@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HLC · INVOICE INTELLIGENCE v4.3</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
+:root{--bg:#060608;--panel:#0d0d14;--panel2:#12121c;--panel3:#181826;--border:#1e1e2e;--border2:#2a2a3e;--border3:#363650;--lime:#b8ff3c;--lime2:#8fcc1e;--cyan:#00e5ff;--magenta:#ff2d9b;--amber:#ffaa00;--red:#ff2d55;--purple:#7c3aed;--teal:#00d4aa;--text:#e0e0f0;--text2:#8888aa;--text3:#44445a;--mono:'Share Tech Mono',monospace;--head:'Rajdhani',sans-serif;--gl:0 0 8px rgba(184,255,60,0.4);--gc:0 0 8px rgba(0,229,255,0.4);--gm:0 0 8px rgba(255,45,155,0.4);--ga:0 0 8px rgba(255,170,0,0.4)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);pointer-events:none;z-index:9999}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(184,255,60,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(184,255,60,.012) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.hdr{position:sticky;top:0;z-index:100;background:var(--panel);border-bottom:1px solid var(--border2);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:48px}
+.hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--lime),transparent);opacity:.35}
+.logo{display:flex;align-items:center;gap:12px}
+.lm{width:28px;height:28px;border:1px solid var(--lime);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--lime);box-shadow:var(--gl);clip-path:polygon(0 4px,4px 0,calc(100% - 4px) 0,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0 calc(100% - 4px))}
+.lt{font-family:var(--head);font-size:15px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.ls{font-size:9px;color:var(--text3);letter-spacing:.12em}
+.hdr-c{display:flex;align-items:center;gap:6px;font-size:12px}
+.pulse{width:5px;height:5px;border-radius:50%;background:var(--text3)}
+.pulse.live{background:var(--lime);box-shadow:var(--gl);animation:blink 2s infinite}
+.pulse.err{background:var(--magenta)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr-r{display:flex;align-items:center;gap:10px}
+.mono-sel{background:var(--panel2);border:1px solid var(--border2);color:var(--cyan);font-family:var(--mono);font-size:11px;padding:5px 10px;outline:none;cursor:pointer}
+.tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:48px;z-index:99;overflow-x:auto}
+.tab{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--lime);border-bottom-color:var(--lime)}
+.tb{font-size:9px;background:var(--panel3);color:var(--text3);padding:1px 5px;min-width:18px;text-align:center}
+.tab.active .tb{background:rgba(184,255,60,.15);color:var(--lime)}
+.tc{display:none}.tc.active{display:block}
+.main{padding:20px;max-width:1600px;position:relative;z-index:1}
+/* Period bar */
+.period-bar{background:var(--panel2);border:1px solid var(--border2);padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.period-label{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);flex-shrink:0}
+.pdiv{width:1px;height:20px;background:var(--border2);flex-shrink:0}
+.date-inputs{display:flex;align-items:center;gap:6px}
+.date-inputs input{background:var(--panel3);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:4px 8px;outline:none;width:120px}
+.date-inputs input:focus{border-color:var(--cyan)}
+.go-btn{font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:5px 14px;cursor:pointer;border:1px solid var(--lime);background:transparent;color:var(--lime);transition:all .15s}
+.go-btn:hover{background:rgba(184,255,60,.1)}
+.period-status{margin-left:auto;font-size:10px;color:var(--text3)}
+.period-status span{color:var(--lime)}
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+.mc{background:var(--panel);border:1px solid var(--border2);padding:14px 16px;position:relative;clip-path:polygon(0 6px,6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%);overflow:hidden}
+.mc::after{content:'';position:absolute;top:0;left:0;width:2px;height:100%}
+.mc.al::after{background:var(--lime);box-shadow:var(--gl)}.mc.ac::after{background:var(--cyan)}.mc.am::after{background:var(--magenta)}.mc.aa::after{background:var(--amber)}.mc.at::after{background:var(--teal)}.mc.ap::after{background:var(--purple)}
+.ml{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.mv{font-family:var(--head);font-size:28px;font-weight:700;line-height:1;margin-bottom:4px}
+.mv.lime{color:var(--lime)}.mv.cyan{color:var(--cyan)}.mv.magenta{color:var(--magenta)}.mv.amber{color:var(--amber)}.mv.teal{color:var(--teal)}.mv.purple{color:var(--purple)}
+.ms{font-size:11px;color:var(--text3)}
+/* AI Intelligence panel */
+.ai-panel{background:var(--panel);border:1px solid var(--border2);margin-bottom:16px;overflow:hidden}
+.ai-panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel2)}
+.ai-panel-title{font-family:var(--head);font-size:12px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--text2);display:flex;align-items:center;gap:8px}
+.ai-panel-title::before{content:'✦';color:var(--lime);font-size:11px}
+.ai-body{padding:16px;min-height:60px}
+.ai-narrative{font-size:12px;color:var(--text2);line-height:1.75;max-width:900px}
+.ai-narrative.loading{color:var(--text3);font-style:italic;display:flex;align-items:center;gap:8px}
+.ai-narrative.loading::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--lime);animation:blink 1s infinite}
+.ai-empty{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:10px}
+.ai-gen-btn{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:6px 16px;cursor:pointer;border:1px solid var(--lime);background:transparent;color:var(--lime);transition:all .15s;clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,5px 100%,0 calc(100% - 5px))}
+.ai-gen-btn:hover{background:rgba(184,255,60,.12);box-shadow:var(--gl)}
+.ai-gen-btn:disabled{opacity:.4;cursor:not-allowed}
+.ai-model-badge{font-size:9px;color:var(--text3);letter-spacing:.08em}
+/* Outlier banner */
+.outlier-banner{display:none;background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.35);padding:10px 16px;margin-bottom:14px;font-size:11px;color:var(--amber);line-height:1.7}
+.outlier-banner.show{display:block}
+/* Charts */
+.charts-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:14px}
+.cpanel{background:var(--panel);border:1px solid var(--border2);overflow:hidden}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel2)}
+.pt2{font-family:var(--head);font-size:12px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--text2);display:flex;align-items:center;gap:8px}
+.pt2::before{content:'//';color:var(--lime);font-family:var(--mono);font-size:10px}
+.ph-hint{font-size:9px;color:var(--text3)}
+.cb{padding:16px}
+canvas{display:block}
+.dw{display:flex;align-items:center;gap:20px}
+.dl{flex:1;min-width:0}
+.li{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:10px;color:var(--text2);cursor:pointer;padding:2px 4px;transition:background .1s}
+.li:hover{background:rgba(255,255,255,.04)}
+.ld{width:8px;height:8px;flex-shrink:0}
+/* Tables */
+.tw{background:var(--panel);border:1px solid var(--border2);overflow:hidden;margin-bottom:16px}
+.tbl-ctrl{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--panel2);gap:10px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--panel2);border-bottom:1px solid var(--border2)}
+th{font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text2);padding:10px 14px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--text)}
+td{padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;font-size:12px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--panel2)}
+.tbl-foot{padding:8px 14px;border-top:1px solid var(--border2);background:var(--panel2);display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--text3)}
+.pager{display:flex;align-items:center;gap:5px}
+.pager button{background:transparent;border:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:10px;padding:2px 8px;cursor:pointer}
+.pager button:hover{border-color:var(--border3);color:var(--text2)}
+.pager button.cur{border-color:var(--lime);color:var(--lime);background:rgba(184,255,60,.08)}
+/* Badges */
+.badge{display:inline-flex;align-items:center;font-family:var(--mono);font-size:10px;letter-spacing:.06em;padding:2px 7px;white-space:nowrap;clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))}
+.bl{background:rgba(184,255,60,.12);color:var(--lime);border:1px solid rgba(184,255,60,.3)}
+.bc{background:rgba(0,229,255,.1);color:var(--cyan);border:1px solid rgba(0,229,255,.3)}
+.bm{background:rgba(255,45,155,.12);color:var(--magenta);border:1px solid rgba(255,45,155,.3)}
+.ba{background:rgba(255,170,0,.12);color:var(--amber);border:1px solid rgba(255,170,0,.3)}
+.bg{background:rgba(255,255,255,.05);color:var(--text3);border:1px solid var(--border2)}
+.bt{background:rgba(0,212,170,.1);color:var(--teal);border:1px solid rgba(0,212,170,.3)}
+.bp{background:rgba(124,58,237,.12);color:var(--purple);border:1px solid rgba(124,58,237,.3)}
+/* Filters */
+.flt-panel{background:var(--panel2);border:1px solid var(--border2);padding:12px 16px;margin-bottom:14px}
+.flt-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.flt-title{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3)}
+.flt-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px}
+.flt-row:last-child{margin-bottom:0}
+.flt-grp{display:flex;flex-direction:column;gap:4px}
+.flt-lbl{font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase}
+.flt-chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border:1px solid var(--border2);color:var(--text3);cursor:pointer;transition:all .12s;background:transparent;white-space:nowrap}
+.chip:hover{border-color:var(--border3);color:var(--text2)}
+.chip.on{border-color:var(--lime);color:var(--lime);background:rgba(184,255,60,.08)}
+.flt-input{background:var(--panel3);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:5px 10px;outline:none}
+.flt-input:focus{border-color:var(--cyan)}
+/* Vbtns */
+.vbtn{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;cursor:pointer;border:1px solid;background:transparent;transition:all .15s;clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))}
+.vbtn-lime{color:var(--lime);border-color:rgba(184,255,60,.4)}.vbtn-lime:hover{background:rgba(184,255,60,.12)}
+.vbtn-cyan{color:var(--cyan);border-color:rgba(0,229,255,.4)}.vbtn-cyan:hover{background:rgba(0,229,255,.08)}
+.vbtn-gray{color:var(--text3);border-color:var(--border2)}.vbtn-gray:hover{color:var(--text2)}
+.vbtn-sm{padding:3px 9px;font-size:9px}
+/* Credits form */
+.cfp{background:var(--panel);border:1px solid var(--border2);padding:16px;margin-bottom:14px}
+.fg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.fg label{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+.fg input,.fg select{width:100%;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;outline:none}
+.fg input:focus,.fg select:focus{border-color:var(--cyan)}
+.full-input{width:100%;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;outline:none;resize:vertical;min-height:52px;margin-bottom:10px;display:block}
+.full-input:focus{border-color:var(--cyan)}
+.fa{display:flex;gap:8px}
+.btn-p{background:var(--lime);color:var(--bg);border:none;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:8px 18px;cursor:pointer;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+.btn-p:hover{background:var(--lime2)}
+.btn-s{background:transparent;color:var(--text3);border:1px solid var(--border2);font-family:var(--mono);font-size:10px;padding:7px 14px;cursor:pointer}
+.btn-s:hover{border-color:var(--border3);color:var(--text2)}
+.bsm{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;cursor:pointer;border:1px solid;background:transparent;transition:all .15s;clip-path:polygon(0 0,calc(100% - 4px) 0,100% 4px,100% 100%,4px 100%,0 calc(100% - 4px))}
+.bsm-lime{color:var(--lime);border-color:rgba(184,255,60,.4)}.bsm-lime:hover{background:rgba(184,255,60,.12)}
+.bsm-gray{color:var(--text3);border-color:var(--border2)}.bsm-gray:hover{color:var(--text2)}
+.bsm-red{color:var(--magenta);border-color:rgba(255,45,155,.3)}.bsm-red:hover{background:rgba(255,45,155,.1)}
+.bsm-amber{color:var(--amber);border-color:rgba(255,170,0,.3)}.bsm-amber:hover{background:rgba(255,170,0,.08)}
+/* Match cards */
+.match-card{background:rgba(255,170,0,.06);border:1px solid rgba(255,170,0,.25);padding:10px 14px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.match-info{flex:1;min-width:0}
+.match-title{font-size:12px;color:var(--amber);margin-bottom:4px;font-weight:600}
+.match-detail{font-size:10px;color:var(--text3);line-height:1.6}
+.match-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end}
+/* AI explain inline */
+.ai-explain-wrap{padding:8px 14px 12px;background:rgba(0,0,0,.2)}
+.ai-explain-text{font-size:11px;color:var(--text2);line-height:1.6;max-width:700px}
+.ai-explain-text.loading{color:var(--text3);font-style:italic}
+/* Compare */
+.cmp-section{background:var(--panel2);border:1px solid var(--border2);padding:14px 16px;margin-bottom:14px}
+.cmp-section-title{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.cmp-range-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cmp-range-label{font-size:11px;padding:4px 12px;border:1px solid;font-family:var(--mono)}
+.cmp-range-a{color:var(--lime);border-color:rgba(184,255,60,.4)}
+.cmp-range-b{color:var(--cyan);border-color:rgba(0,229,255,.4)}
+/* Search highlight */
+.hl{background:rgba(184,255,60,.2);color:var(--lime)}
+/* Empty */
+.empty{text-align:center;padding:48px 24px;color:var(--text3)}
+.empty-i{font-size:26px;margin-bottom:12px;opacity:.3}
+.empty-t{font-family:var(--head);font-size:13px;color:var(--text2);margin-bottom:6px;letter-spacing:.06em}
+.empty-s{font-size:11px;max-width:280px;margin:0 auto;line-height:1.6}
+/* Load overlay */
+.load-overlay{position:fixed;inset:0;background:rgba(6,6,8,.92);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:500}
+.load-overlay.show{display:flex}
+.load-title{font-family:var(--head);font-size:18px;font-weight:700;color:var(--lime);letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px}
+.load-sub{font-size:10px;color:var(--text3);letter-spacing:.1em;margin-bottom:24px}
+.load-bar-wrap{width:280px;height:4px;background:var(--panel3)}
+.load-bar{height:100%;background:linear-gradient(90deg,var(--lime2),var(--lime));width:0%;transition:width .4s ease}
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-size:11px;padding:10px 16px;z-index:9000;transform:translateY(60px);opacity:0;transition:all .2s;max-width:320px;clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-left:2px solid var(--lime)}.toast.err{border-left:2px solid var(--magenta)}.toast.info{border-left:2px solid var(--cyan)}.toast.warn{border-left:2px solid var(--amber)}
+</style>
+</head>
+<body>
+
+<div class="load-overlay" id="loadOverlay">
+  <div class="load-title">HLC Intelligence</div>
+  <div class="load-sub" id="loadSub">Connecting to Supabase...</div>
+  <div class="load-bar-wrap"><div class="load-bar" id="loadBar"></div></div>
+</div>
+
+<div class="hdr">
+  <div class="logo">
+    <div class="lm">CH</div>
+    <div><div class="lt">HLC · Invoice Intelligence</div><div class="ls">Craighill Ops · v4.3 · Supabase Live</div></div>
+  </div>
+  <div class="hdr-c"><div class="pulse" id="dbP"></div><span id="dbS">Connecting...</span></div>
+  <div class="hdr-r">
+    <select class="mono-sel" id="usel">
+      <option value="juan">// Juan Grisales</option>
+      <option value="kim">// Kim Chan</option>
+      <option value="jacobo">// Jacobo Ospina</option>
+      <option value="dpm">// DPM (TBD)</option>
+    </select>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="goTab('overview')" id="tab-overview">Overview</div>
+  <div class="tab" onclick="goTab('shipping')" id="tab-shipping">Shipping <span class="tb" id="cnt-s">—</span></div>
+  <div class="tab" onclick="goTab('orders')" id="tab-orders">Order Charges <span class="tb" id="cnt-o">—</span></div>
+  <div class="tab" onclick="goTab('invoice')" id="tab-invoice">Invoice Charges <span class="tb" id="cnt-i">—</span></div>
+  <div class="tab" onclick="goTab('credits')" id="tab-credits">Credits <span class="tb" id="cnt-cr">—</span></div>
+  <div class="tab" onclick="goTab('compare')" id="tab-compare">Compare</div>
+  <div class="tab" onclick="goTab('search')" id="tab-search">Search</div>
+</div>
+
+<div class="main">
+
+<!-- PERIOD BAR -->
+<div class="period-bar" id="periodBar">
+  <span class="period-label">Period //</span>
+  <select class="mono-sel" id="qsel" onchange="setQ(this.value)" style="color:var(--lime);min-width:120px">
+    <option value="Q4-2025">Q4 2025</option>
+    <option value="Q1-2026">Q1 2026</option>
+    <option value="Q2-2026" selected>Q2 2026</option>
+    <option value="Q3-2026">Q3 2026</option>
+    <option value="Q4-2026">Q4 2026</option>
+    <option value="Q1-2027">Q1 2027</option>
+    <option value="ALL">All Time</option>
+  </select>
+  <div class="pdiv"></div>
+  <span style="font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase">Custom //</span>
+  <div class="date-inputs">
+    <input type="date" id="d-from">
+    <span style="color:var(--text3);font-size:10px">→</span>
+    <input type="date" id="d-to">
+    <button class="go-btn" onclick="applyCustomRange()">Go</button>
+  </div>
+  <span class="period-status" id="periodStatus">Loading...</span>
+</div>
+
+<!-- ══ OVERVIEW TAB ══ -->
+<div class="tc active" id="tc-overview">
+  <div class="outlier-banner" id="outlierBanner"></div>
+  <div class="kpi-row">
+    <div class="mc al"><div class="ml">Shipping Cost</div><div class="mv lime" id="ov-ship">—</div><div class="ms" id="ov-ship-s">carrier charges</div></div>
+    <div class="mc ac"><div class="ml">Pick & Pack</div><div class="mv cyan" id="ov-pick">—</div><div class="ms" id="ov-pick-s">order fees</div></div>
+    <div class="mc aa"><div class="ml">Overhead</div><div class="mv amber" id="ov-oh">—</div><div class="ms">storage · mgmt · supplies</div></div>
+    <div class="mc at"><div class="ml">Credits Received</div><div class="mv teal" id="ov-cred">—</div><div class="ms">from invoice data</div></div>
+    <div class="mc am"><div class="ml">Total Orders</div><div class="mv magenta" id="ov-ords">—</div><div class="ms">unique orders in period</div></div>
+    <div class="mc ap"><div class="ml">Avg Ship Cost</div><div class="mv purple" id="ov-avg">—</div><div class="ms">per shipment</div></div>
+  </div>
+
+  <!-- AI Period Intelligence -->
+  <div class="ai-panel">
+    <div class="ai-panel-hdr">
+      <div class="ai-panel-title">Period Intelligence</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="ai-model-badge" id="aiModelBadge">—</span>
+        <button class="ai-gen-btn" id="aiGenBtn" onclick="generateNarrative()">✦ Generate Summary</button>
+      </div>
+    </div>
+    <div class="ai-body">
+      <div class="ai-empty" id="aiEmpty">
+        <span>Select a period and load data, then click <strong style="color:var(--lime)">Generate Summary</strong> for an AI narrative of this period's financials.</span>
+      </div>
+      <div class="ai-narrative" id="aiNarrative" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="cpanel"><div class="ph"><div class="pt2">Carrier Cost Split</div><div class="ph-hint">by total charge $</div></div><div class="cb"><div class="dw"><canvas id="donutCv" width="140" height="140"></canvas><div class="dl" id="donutLeg"></div></div></div></div>
+    <div class="cpanel"><div class="ph"><div class="pt2">Top Destination States</div></div><div class="cb"><canvas id="stateCv" style="width:100%;height:160px"></canvas></div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="cpanel"><div class="ph"><div class="pt2">Carrier Volume Mix</div><div class="ph-hint">shipment count by carrier</div></div><div class="cb"><div class="dw"><canvas id="carrVolCv" width="140" height="140"></canvas><div class="dl" id="carrVolLeg"></div></div></div></div>
+    <div class="cpanel"><div class="ph"><div class="pt2">Service Level Mix</div></div><div class="cb"><canvas id="svcCv" style="width:100%;height:160px"></canvas></div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="cpanel"><div class="ph"><div class="pt2">Package Type Distribution</div></div><div class="cb"><canvas id="pkgCv" style="width:100%;height:160px"></canvas></div></div>
+    <div class="cpanel" style="display:none"></div>
+  </div>
+
+  <div class="tw">
+    <div class="ph"><div class="pt2">Invoice Charges Breakdown</div><div class="ph-hint">monthly overhead + credits</div></div>
+    <table><thead><tr><th>Type</th><th>Period</th><th>Description</th><th>Amount</th><th>Qty</th></tr></thead>
+    <tbody id="invSummTb"></tbody></table>
+    <div class="empty" id="invSummE" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No invoice data for this period</div></div>
+  </div>
+</div>
+
+<!-- ══ SHIPPING TAB ══ -->
+<div class="tc" id="tc-shipping">
+  <div class="flt-panel">
+    <div class="flt-hdr">
+      <span class="flt-title">// Filter · Shipping Charges</span>
+      <div style="display:flex;gap:6px">
+        <button class="vbtn vbtn-gray vbtn-sm" onclick="clearShipFlt()">Clear</button>
+        <button class="vbtn vbtn-lime vbtn-sm" onclick="exportShip()">Export CSV</button>
+      </div>
+    </div>
+    <div class="flt-row">
+      <div class="flt-grp"><div class="flt-lbl">Carrier</div><div class="flt-chips" id="sflt-carrier"><div class="chip on" onclick="setSFlt('carrier','ALL',this)">All</div></div></div>
+      <div class="flt-grp"><div class="flt-lbl">Destination</div>
+        <div class="flt-chips">
+          <div class="chip on" id="sfc-all" onclick="setSFlt('country','ALL',this)">All</div>
+          <div class="chip" id="sfc-us" onclick="setSFlt('country','US',this)">Domestic</div>
+          <div class="chip" id="sfc-intl" onclick="setSFlt('country','Intl',this)">International</div>
+        </div>
+      </div>
+      <div class="flt-grp"><div class="flt-lbl">Search</div><input class="flt-input" id="sflt-search" placeholder="Order #, tracking, city..." oninput="applyShipFlt()" style="width:200px"></div>
+      <div class="flt-grp"><div class="flt-lbl">Amount Range</div>
+        <div style="display:flex;gap:4px;align-items:center">
+          <input class="flt-input" id="sflt-min" type="number" placeholder="$0" oninput="applyShipFlt()" style="width:70px">
+          <span style="color:var(--text3);font-size:10px">–</span>
+          <input class="flt-input" id="sflt-max" type="number" placeholder="max" oninput="applyShipFlt()" style="width:70px">
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tw">
+    <div class="tbl-ctrl">
+      <span style="font-size:10px;color:var(--text3)">Showing <span id="ship-count" style="color:var(--lime)">0</span> of <span id="ship-total" style="color:var(--text2)">0</span></span>
+      <div style="display:flex;gap:6px">
+        <button class="vbtn vbtn-gray vbtn-sm" onclick="setShipSort('charge_amount')">↕ Amount</button>
+        <button class="vbtn vbtn-gray vbtn-sm" onclick="setShipSort('carrier')">↕ Carrier</button>
+        <button class="vbtn vbtn-gray vbtn-sm" onclick="setShipSort('ship_to_country')">↕ Country</button>
+      </div>
+    </div>
+    <table><thead><tr>
+      <th onclick="setShipSort('order_number')">Order #</th>
+      <th onclick="setShipSort('carrier')">Carrier</th>
+      <th onclick="setShipSort('service_level')">Service</th>
+      <th onclick="setShipSort('ship_to_country')">Country</th>
+      <th onclick="setShipSort('ship_to_state')">State</th>
+      <th onclick="setShipSort('package_name')">Package</th>
+      <th onclick="setShipSort('package_weight')">Weight</th>
+      <th onclick="setShipSort('charge_amount')">Charge</th>
+      <th onclick="setShipSort('ship_date')">Ship Date</th>
+      <th>AI</th>
+    </tr></thead><tbody id="shipTb"></tbody></table>
+    <div class="empty" id="shipE" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No results</div></div>
+    <div class="tbl-foot"><span id="ship-sum">$0.00</span><div class="pager" id="ship-pager"></div></div>
+  </div>
+</div>
+
+<!-- ══ ORDER CHARGES TAB ══ -->
+<div class="tc" id="tc-orders">
+  <div class="flt-panel">
+    <div class="flt-hdr">
+      <span class="flt-title">// Filter · Order Charges</span>
+      <div style="display:flex;gap:6px">
+        <button class="vbtn vbtn-gray vbtn-sm" onclick="clearOrdFlt()">Clear</button>
+        <button class="vbtn vbtn-lime vbtn-sm" onclick="exportOrders()">Export CSV</button>
+      </div>
+    </div>
+    <div class="flt-row">
+      <div class="flt-grp"><div class="flt-lbl">Package Type</div><div class="flt-chips" id="oflt-pkg"><div class="chip on" onclick="setOFlt('pkg','ALL',this)">All</div></div></div>
+      <div class="flt-grp"><div class="flt-lbl">Carrier</div><div class="flt-chips" id="oflt-carrier"><div class="chip on" onclick="setOFlt('carrier','ALL',this)">All</div></div></div>
+      <div class="flt-grp"><div class="flt-lbl">Search</div><input class="flt-input" id="oflt-search" placeholder="CRA order #..." oninput="applyOrdFlt()" style="width:180px"></div>
+    </div>
+  </div>
+  <div class="tw">
+    <div class="tbl-ctrl">
+      <span style="font-size:10px;color:var(--text3)">Showing <span id="ord-count" style="color:var(--lime)">0</span> of <span id="ord-total" style="color:var(--text2)">0</span></span>
+    </div>
+    <table><thead><tr>
+      <th onclick="setOrdSort('order_number')">Order #</th>
+      <th onclick="setOrdSort('carrier')">Carrier</th>
+      <th onclick="setOrdSort('service_level')">Service</th>
+      <th onclick="setOrdSort('package_type')">Package</th>
+      <th>Dims</th>
+      <th onclick="setOrdSort('weight_value')">Weight</th>
+      <th onclick="setOrdSort('initial_pick_fee_amount')">Init Pick</th>
+      <th onclick="setOrdSort('additional_pick_fee_amount')">Add'l Pick</th>
+      <th>Recipient</th>
+      <th onclick="setOrdSort('ship_datetime')">Shipped</th>
+    </tr></thead><tbody id="ordTb"></tbody></table>
+    <div class="empty" id="ordE" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No results</div></div>
+    <div class="tbl-foot"><span id="ord-sum">$0.00 pick fees</span><div class="pager" id="ord-pager"></div></div>
+  </div>
+</div>
+
+<!-- ══ INVOICE CHARGES TAB ══ -->
+<div class="tc" id="tc-invoice">
+  <div style="background:var(--panel2);border:1px solid var(--border2);padding:8px 14px;margin-bottom:12px;font-size:10px;color:var(--text3)">
+    Monthly overhead — storage, account management, supplies, hourly fees. Credits shown as <span style="color:var(--teal)">negative / teal</span>.
+  </div>
+  <div class="tw">
+    <table><thead><tr>
+      <th onclick="setInvSort('date_from')">Period</th>
+      <th onclick="setInvSort('invoice_id')">Invoice ID</th>
+      <th onclick="setInvSort('charge_on_invoice')">Type</th>
+      <th onclick="setInvSort('amount')">Amount</th>
+      <th onclick="setInvSort('quantity')">Qty</th>
+      <th>Description</th>
+      <th>AI</th>
+    </tr></thead><tbody id="invTb"></tbody></table>
+    <div class="empty" id="invE" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No invoice charges</div></div>
+    <div class="tbl-foot"><span id="inv-sum">$0.00</span><div class="pager" id="inv-pager"></div></div>
+  </div>
+</div>
+
+<!-- ══ CREDITS TAB ══ -->
+<div class="tc" id="tc-credits">
+  <div class="cpanel" style="margin-bottom:16px">
+    <div class="ph"><div class="pt2">Auto-Detected Credits from Invoice Data</div><div class="ph-hint" id="autoCredHint">scanning...</div></div>
+    <div id="autoCredList" style="padding:12px 16px">
+      <div class="empty" id="autoCredE"><div class="empty-i">◈</div><div class="empty-t">No credits in current period</div></div>
+    </div>
+  </div>
+  <div class="cpanel" id="matchPanel" style="margin-bottom:16px;display:none">
+    <div class="ph"><div class="pt2">Potential Matches — Review Required</div><div class="ph-hint">invoice credits that may match logged claims</div></div>
+    <div id="matchList" style="padding:12px 16px"></div>
+  </div>
+  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
+    <div class="mc am"><div class="ml">Total Exposure</div><div class="mv magenta" id="cr-exp">$0</div><div class="ms">all claims filed</div></div>
+    <div class="mc al"><div class="ml">$ Recovered</div><div class="mv lime" id="cr-rec">$0</div><div class="ms">approved + resolved</div></div>
+    <div class="mc ap"><div class="ml">Recovery Rate</div><div class="mv purple" id="cr-rate">0%</div><div class="ms">of exposure filed</div></div>
+    <div class="mc ac"><div class="ml">Open Claims</div><div class="mv cyan" id="cr-open">0</div><div class="ms">pending + appealed</div></div>
+  </div>
+  <div class="cfp">
+    <div style="font-size:9px;letter-spacing:.15em;color:var(--text3);text-transform:uppercase;margin-bottom:12px">// Log Credit Claim</div>
+    <div class="fg">
+      <div><label>Order #</label><input id="cr-o" placeholder="CRA######"></div>
+      <div><label>Carrier</label><select id="cr-c"><option value="">Select</option><option>iDrive</option><option>FlavorCloud</option><option>UPS</option><option>FedEx</option><option>DHL</option><option>OnTrac</option><option>Veho</option><option>USPS</option><option>GoFo</option><option>HLC</option></select></div>
+      <div><label>Amount ($)</label><input type="number" id="cr-a" placeholder="0.00" step="0.01"></div>
+      <div><label>Status</label><select id="cr-st"><option value="pending">Pending</option><option value="approved">Approved</option><option value="denied">Denied</option><option value="appealed">Appealed</option><option value="resolved">Resolved</option></select></div>
+    </div>
+    <div class="fg">
+      <div><label>Contact / Account</label><input id="cr-cn" placeholder="Name or account"></div>
+      <div><label>Email</label><input type="email" id="cr-em" placeholder="claims@carrier.com"></div>
+      <div><label>Invoice Period</label><input id="cr-p" placeholder="Apr 2026"></div>
+      <div><label>Linked Invoice ID</label><input id="cr-lid" placeholder="Auto-filled from match"></div>
+    </div>
+    <label style="display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">Notes / Keywords</label>
+    <textarea class="full-input" id="cr-n" placeholder="Context, references, keywords for matching (e.g. Turkey, KOHEZI, wholesale)..."></textarea>
+    <div class="fa"><button class="btn-p" onclick="saveClaim()">Save Claim</button><button class="btn-s" onclick="clearClaim()">Clear</button></div>
+  </div>
+  <div class="tw">
+    <div class="ph"><div class="pt2">Claims Log</div><span id="crTotal" style="font-size:10px;color:var(--text3)">$0.00</span></div>
+    <table><thead><tr><th>Order #</th><th>Period</th><th>Carrier</th><th>Amount</th><th>Contact</th><th>Status</th><th>Match</th><th>Notes</th><th>By</th><th>AI</th><th></th></tr></thead>
+    <tbody id="crTb"></tbody></table>
+    <div class="empty" id="crE"><div class="empty-i">◈</div><div class="empty-t">No claims yet</div></div>
+  </div>
+</div>
+
+<!-- ══ COMPARE TAB ══ -->
+<div class="tc" id="tc-compare">
+  <div style="background:var(--panel2);border:1px solid var(--border2);padding:8px 14px;margin-bottom:14px;font-size:10px;color:var(--text3)">
+    Compare any two date ranges, quarters, or invoice periods against each other. Use the controls below — each side is fully independent.
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+    <!-- Side A -->
+    <div class="cmp-section">
+      <div class="cmp-section-title">// Period A <span class="cmp-range-label cmp-range-a">LIME</span></div>
+      <div class="cmp-range-row" style="margin-bottom:8px">
+        <select class="mono-sel" id="cmp-a-q" onchange="setCmpQ('a')" style="color:var(--lime)">
+          <option value="">— Select Quarter —</option>
+          <option value="Q4-2025">Q4 2025</option>
+          <option value="Q1-2026">Q1 2026</option>
+          <option value="Q2-2026">Q2 2026</option>
+          <option value="Q3-2026">Q3 2026</option>
+          <option value="Q4-2026">Q4 2026</option>
+          <option value="ALL">All Time</option>
+        </select>
+        <span style="font-size:10px;color:var(--text3)">or custom:</span>
+      </div>
+      <div class="date-inputs">
+        <input type="date" id="cmp-a-from" style="border-color:rgba(184,255,60,.3)">
+        <span style="color:var(--text3);font-size:10px">→</span>
+        <input type="date" id="cmp-a-to" style="border-color:rgba(184,255,60,.3)">
+      </div>
+    </div>
+    <!-- Side B -->
+    <div class="cmp-section">
+      <div class="cmp-section-title">// Period B <span class="cmp-range-label cmp-range-b">CYAN</span></div>
+      <div class="cmp-range-row" style="margin-bottom:8px">
+        <select class="mono-sel" id="cmp-b-q" onchange="setCmpQ('b')" style="color:var(--cyan)">
+          <option value="">— Select Quarter —</option>
+          <option value="Q4-2025">Q4 2025</option>
+          <option value="Q1-2026">Q1 2026</option>
+          <option value="Q2-2026">Q2 2026</option>
+          <option value="Q3-2026">Q3 2026</option>
+          <option value="Q4-2026">Q4 2026</option>
+          <option value="ALL">All Time</option>
+        </select>
+        <span style="font-size:10px;color:var(--text3)">or custom:</span>
+      </div>
+      <div class="date-inputs">
+        <input type="date" id="cmp-b-from" style="border-color:rgba(0,229,255,.3)">
+        <span style="color:var(--text3);font-size:10px">→</span>
+        <input type="date" id="cmp-b-to" style="border-color:rgba(0,229,255,.3)">
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+    <button class="vbtn vbtn-lime" onclick="runCompare()">Run Comparison</button>
+    <button class="vbtn vbtn-gray" id="cmpAiBtn" onclick="runCompareAI()" style="display:none">✦ AI Analysis</button>
+    <span style="font-size:10px;color:var(--text3)" id="cmpAiModel"></span>
+  </div>
+  <div id="cmpResults">
+    <div class="empty" id="cmpE"><div class="empty-i">◈</div><div class="empty-t">Set both periods above and click Run Comparison</div></div>
+  </div>
+  <div id="cmpAiResult" style="display:none;margin-top:14px">
+    <div class="ai-panel">
+      <div class="ai-panel-hdr"><div class="ai-panel-title">Comparison Analysis</div></div>
+      <div class="ai-body"><div class="ai-narrative" id="cmpAiText"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SEARCH TAB ══ -->
+<div class="tc" id="tc-search">
+  <div style="background:var(--panel2);border:1px solid var(--border2);padding:16px;margin-bottom:14px">
+    <div style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">// Universal Search — all tables · all periods</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="flt-input" id="srch-q" placeholder="Order # (CRA146835), tracking number, city, country, keyword (Turkey, KOHEZI)..." style="flex:1;font-size:12px;padding:8px 12px" onkeydown="if(event.key==='Enter')runSearch()">
+      <button class="go-btn" style="padding:8px 20px;font-size:11px" onclick="runSearch()">Search</button>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:6px">Searches: shipping charges · order charges · invoice charges · credit claims · <strong style="color:var(--amber)">not period-filtered</strong></div>
+  </div>
+  <div id="srchResults">
+    <div class="empty" id="srchE"><div class="empty-i">◈</div><div class="empty-t">Enter a search query above</div><div class="empty-s">Try a CRA order number, tracking number, or keyword</div></div>
+  </div>
+</div>
+
+</div><!-- /main -->
+<div class="toast" id="toast"></div>
+
+<script>
+var SB_URL='https://qcpvmyholfiymflrnaav.supabase.co';
+var SB_KEY='sb_publishable_UTpSY6b8NYryifzSVwX4_A_TWlTG2Mf';
+var OUTLIER_SHIP_THRESHOLD=300;
+var OUTLIER_PICK_THRESHOLD=500;
+var sb,aKey='';
+var shipData=[],ordData=[],invData=[],creditData=[];
+var shipFilt=[],ordFilt=[];
+var shipPage=1,ordPage=1,invPage=1,PAGE=100;
+var shipSort='charge_amount',shipDir=-1;
+var ordSort='ship_datetime',ordDir=-1;
+var invSort='date_from',invDir=-1;
+var sfCarrier='ALL',sfCountry='ALL';
+var ofPkg='ALL',ofCarrier='ALL';
+var activePeriod={type:'Q',q:'Q2-2026',from:'2026-04-01',to:'2026-06-30'};
+var cmpDataA=null,cmpDataB=null;
+
+var QUARTERS={
+  'Q4-2025':{from:'2025-10-01',to:'2025-12-31'},
+  'Q1-2026':{from:'2026-01-01',to:'2026-03-31'},
+  'Q2-2026':{from:'2026-04-01',to:'2026-06-30'},
+  'Q3-2026':{from:'2026-07-01',to:'2026-09-30'},
+  'Q4-2026':{from:'2026-10-01',to:'2026-12-31'},
+  'Q1-2027':{from:'2027-01-01',to:'2027-03-31'},
+  'ALL':{from:'2020-01-01',to:'2030-12-31'}
+};
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function showLoad(m,p){document.getElementById('loadOverlay').classList.add('show');document.getElementById('loadSub').textContent=m;document.getElementById('loadBar').style.width=p+'%';}
+function hideLoad(){document.getElementById('loadOverlay').classList.remove('show');}
+
+async function init(){
+  showLoad('Connecting to Supabase...',15);
+  try{
+    sb=window.supabase.createClient(SB_URL,SB_KEY);
+    var t=await sb.from('rails_shipping_charges').select('id').limit(1);
+    if(t.error)throw t.error;
+    setSt('live','Connected · Supabase Live');
+    showLoad('Loading AI config...',30);
+    try{var cfg=await sb.from('app_config').select('value').eq('key','anthropic_api_key').single();if(cfg.data&&cfg.data.value){aKey=cfg.data.value;document.getElementById('aiModelBadge').textContent='Sonnet 4 · Haiku fallback';}}catch(e){}
+    showLoad('Loading period data...',50);
+    await loadAll();
+    showLoad('Ready!',100);
+    setTimeout(hideLoad,400);
+    try{sb.channel('cr').on('postgres_changes',{event:'*',schema:'public',table:'credit_log'},function(){loadCredits();}).subscribe();}catch(re){console.warn('Realtime:',re);}
+  }catch(e){
+    setSt('err','Data loaded — realtime unavailable');
+    console.error(e);
+    hideLoad();
+    toast('Supabase error: '+e.message,'err');
+  }
+}
+
+function setSt(s,m){
+  var p=document.getElementById('dbP'),t=document.getElementById('dbS');
+  p.className='pulse '+(s==='live'?'live':'err');
+  t.textContent=m;
+  t.style.color=s==='live'?'var(--lime)':'var(--magenta)';
+}
+
+async function loadAll(){
+  // Reset AI panel immediately
+  document.getElementById('aiEmpty').style.display='block';
+  document.getElementById('aiNarrative').style.display='none';
+  document.getElementById('aiNarrative').textContent='';
+  setText('periodStatus','Loading shipping...');
+  await loadShipping();
+  setText('periodStatus','Loading orders...');
+  await loadOrders();
+  setText('periodStatus','Loading invoice charges...');
+  await loadInvoice();
+  setText('periodStatus','Loading credits...');
+  await loadCredits();
+  setText('periodStatus','Rendering...');
+  renderOverview();
+  // Force table renders with slight delay to ensure DOM is ready
+  setTimeout(function(){
+    applyShipFlt();
+    applyOrdFlt();
+    renderInvoice();
+    detectCredits();
+    runOutlierCheck();
+    renderCredits();
+    // Update period status with final counts
+    setText('periodStatus','<span>'+periodLabel()+'</span> &middot; '+shipData.length+' ship &middot; '+ordData.length+' orders &middot; '+invData.length+' inv');
+  },50);
+}
+
+// ── PERIOD ────────────────────────────────────────────────────────────────────
+function setQ(q){
+  activePeriod={type:'Q',q:q,from:QUARTERS[q].from,to:QUARTERS[q].to};
+  setText('periodStatus','Loading '+(q==='ALL'?'All Time (capped at 15k rows/table)':q)+'...');
+  loadAll();
+}
+
+function applyCustomRange(){
+  var f=document.getElementById('d-from').value,t=document.getElementById('d-to').value;
+  if(!f||!t){toast('Select both dates','warn');return;}
+  document.getElementById('qsel').value='';
+  activePeriod={type:'custom',from:f,to:t};
+  loadAll();
+}
+
+function periodLabel(){
+  if(activePeriod.q==='ALL')return'All Time';
+  if(activePeriod.type==='Q')return activePeriod.q.replace('-',' ');
+  return activePeriod.from+' → '+activePeriod.to;
+}
+
+function buildQuery(table){
+  var q=sb.from(table).select('*');
+  if(activePeriod.q!=='ALL'){
+    q=q.gte('date_from',activePeriod.from).lte('date_to',activePeriod.to);
+  }
+  return q;
+}
+
+// ── DATA LOADERS ──────────────────────────────────────────────────────────────
+async function loadShipping(){
+  var filters={gte_from:activePeriod.from,lte_to:activePeriod.to,q:activePeriod.q};
+  shipData=await fetchAll('rails_shipping_charges',filters);
+  shipData.sort(function(a,b){return (b.ship_date||'').localeCompare(a.ship_date||'');});
+  setText('cnt-s',shipData.length.toLocaleString());
+  buildShipChips();
+}
+async function loadOrders(){
+  var filters={gte_from:activePeriod.from,lte_to:activePeriod.to,q:activePeriod.q};
+  ordData=await fetchAll('rails_order_charges_deduped',filters);
+  ordData.sort(function(a,b){return (b.ship_datetime||'').localeCompare(a.ship_datetime||'');});
+  setText('cnt-o',ordData.length.toLocaleString());
+  buildOrdChips();
+}
+async function loadInvoice(){
+  var filters={gte_from:activePeriod.from,lte_to:activePeriod.to,q:activePeriod.q};
+  invData=await fetchAll('rails_invoice_charges_deduped',filters);
+  invData.sort(function(a,b){return (b.date_from||'').localeCompare(a.date_from||'');});
+  setText('cnt-i',invData.length.toLocaleString());
+}
+async function loadCredits(){
+  if(!sb)return;
+  var r=await sb.from('credit_log').select('*').order('filed_at',{ascending:false});
+  creditData=r.data||[];
+  setText('cnt-cr',creditData.length);
+  renderCredits();
+}
+
+// ── OVERVIEW ──────────────────────────────────────────────────────────────────
+function renderOverview(){
+  var shipTotal=0;for(var i=0;i<shipData.length;i++)shipTotal+=parseFloat(shipData[i].charge_amount||0);
+  var pickTotal=0;
+  for(var i=0;i<ordData.length;i++){
+    pickTotal+=parseFloat(ordData[i].initial_pick_fee_amount||0);
+    pickTotal+=parseFloat(ordData[i].additional_pick_fee_amount||0);
+  }
+  var overhead=0,credits=0;
+  for(var i=0;i<invData.length;i++){var a=parseFloat(invData[i].amount||0);if(a<0)credits+=Math.abs(a);else overhead+=a;}
+  var uniqOrds={};for(var i=0;i<ordData.length;i++)if(ordData[i].order_number)uniqOrds[ordData[i].order_number]=true;
+  var ordCount=Object.keys(uniqOrds).length;
+  setText('ov-ship','$'+fmt(shipTotal));setText('ov-ship-s',shipData.length+' charges');
+  setText('ov-pick','$'+fmt(pickTotal));setText('ov-pick-s',ordCount+' unique orders');
+  setText('ov-oh','$'+fmt(overhead));
+  setText('ov-cred','$'+fmt(credits));
+  setText('ov-ords',ordCount.toLocaleString());
+  setText('ov-avg','$'+fmt(ordCount>0?shipTotal/ordCount:0));
+  setText('periodStatus','<span>'+periodLabel()+'</span> · '+shipData.length+' ship · '+ordData.length+' orders · '+invData.length+' inv');
+  drawOverviewCharts();
+  renderInvSummary();
+}
+
+function renderInvSummary(){
+  var tb=document.getElementById('invSummTb'),em=document.getElementById('invSummE');
+  if(!invData.length){tb.innerHTML='';em.style.display='block';return;}
+  em.style.display='none';
+  var html='',sorted=invData.slice().sort(function(a,b){return Math.abs(parseFloat(b.amount||0))-Math.abs(parseFloat(a.amount||0));});
+  for(var i=0;i<sorted.length;i++){
+    var c=sorted[i],amt=parseFloat(c.amount||0),isCredit=amt<0||(c.charge_on_invoice||'').toLowerCase()==='credit';
+    html+='<tr><td><span class="badge '+(isCredit?'bt':'bg')+'">'+(c.charge_on_invoice||'—')+'</span></td>';
+    html+='<td style="color:var(--text3);font-size:10px">'+(c.date_from||'')+(c.date_to?' – '+c.date_to:'')+'</td>';
+    html+='<td style="color:var(--text2);max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(c.description||'—')+'</td>';
+    html+='<td style="font-family:var(--mono);color:'+(isCredit?'var(--teal)':'var(--text)')+'">$'+fmt(Math.abs(amt))+(isCredit?' CR':'')+'</td>';
+    html+='<td style="color:var(--text3)">'+(c.quantity||'—')+'</td></tr>';
+  }
+  tb.innerHTML=html;
+}
+
+// ── OUTLIER DETECTION ─────────────────────────────────────────────────────────
+function runOutlierCheck(){
+  var flags=[];
+  for(var i=0;i<shipData.length;i++){
+    var amt=parseFloat(shipData[i].charge_amount||0);
+    if(amt>OUTLIER_SHIP_THRESHOLD)flags.push('High carrier charge: $'+fmt(amt)+' — order '+(shipData[i].order_number||'?')+' ('+shipData[i].carrier+', '+shipData[i].service_level+')');
+  }
+  for(var i=0;i<ordData.length;i++){
+    var q=parseFloat(ordData[i].additional_pick_fee_qty||0);
+    if(q>OUTLIER_PICK_THRESHOLD)flags.push('High additional picks: '+q+' units — order '+(ordData[i].order_number||'?'));
+  }
+  var banner=document.getElementById('outlierBanner');
+  if(!flags.length){banner.classList.remove('show');return;}
+  banner.classList.add('show');
+  var shown=flags.slice(0,5);
+  banner.innerHTML='<strong>⚠ '+flags.length+' Outlier'+(flags.length>1?'s':'')+' in '+periodLabel()+'</strong>'
+    +' <span style="font-size:9px;color:var(--text3)">(thresholds: $'+OUTLIER_SHIP_THRESHOLD+' shipping · '+OUTLIER_PICK_THRESHOLD+' additional picks — pending Kim review)</span><br>'
+    +shown.join('<br>')
+    +(flags.length>5?'<br><em style="color:var(--text3)">+'+(flags.length-5)+' more...</em>':'');
+}
+
+// ── AI ENGINE — SONNET WITH HAIKU FALLBACK ────────────────────────────────────
+async function callAI(prompt,onChunk){
+  if(!aKey)return'AI key not configured — contact Juan or Kim.';
+  var models=['claude-sonnet-4-20250514','claude-haiku-4-5-20251001'];
+  for(var mi=0;mi<models.length;mi++){
+    try{
+      var resp=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':aKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:models[mi],max_tokens:1000,messages:[{role:'user',content:prompt}]})
+      });
+      var data=await resp.json();
+      if(data.error){
+        if(mi===0){console.warn('Sonnet failed, trying Haiku:',data.error);continue;}
+        return'AI error: '+(data.error.message||'Unknown');
+      }
+      var text=(data.content&&data.content[0]&&data.content[0].text)||'No response.';
+      if(onChunk)onChunk(models[mi]);
+      return text;
+    }catch(e){
+      if(mi===0){console.warn('Sonnet exception, trying Haiku:',e);continue;}
+      return'AI unavailable: '+e.message;
+    }
+  }
+  return'AI unavailable.';
+}
+
+async function generateNarrative(){
+  var btn=document.getElementById('aiGenBtn'),narr=document.getElementById('aiNarrative'),empty=document.getElementById('aiEmpty');
+  btn.disabled=true;btn.textContent='Generating...';
+  narr.style.display='block';empty.style.display='none';
+  narr.className='ai-narrative loading';narr.textContent='Analyzing '+periodLabel()+' data...';
+
+  var shipTotal=0;for(var i=0;i<shipData.length;i++)shipTotal+=parseFloat(shipData[i].charge_amount||0);
+  var pickTotal=0;for(var i=0;i<ordData.length;i++){pickTotal+=parseFloat(ordData[i].initial_pick_fee_amount||0)+parseFloat(ordData[i].additional_pick_fee_amount||0);}
+  var overhead=0,credits=0;for(var i=0;i<invData.length;i++){var a=parseFloat(invData[i].amount||0);if(a<0)credits+=Math.abs(a);else overhead+=a;}
+  var uniqOrds={};for(var i=0;i<ordData.length;i++)if(ordData[i].order_number)uniqOrds[ordData[i].order_number]=true;
+  var ordCount=Object.keys(uniqOrds).length;
+  var cars={};for(var i=0;i<shipData.length;i++){var c=shipData[i].carrier||'Unknown';cars[c]=(cars[c]||0)+parseFloat(shipData[i].charge_amount||0);}
+  var topCarrier=Object.keys(cars).sort(function(a,b){return cars[b]-cars[a];})[0]||'Unknown';
+  var outlierCount=shipData.filter(function(c){return parseFloat(c.charge_amount||0)>OUTLIER_SHIP_THRESHOLD;}).length;
+  var autoCredits=invData.filter(function(c){return parseFloat(c.amount||0)<0||(c.charge_on_invoice||'').toLowerCase()==='credit';});
+  var intlCount=shipData.filter(function(c){return c.ship_to_country&&c.ship_to_country!=='US';}).length;
+
+  var prompt='You are a sharp ops analyst for Craighill, a NYC design brand using HLC (Highline Commerce) as their 3PL in Brooklyn. Write a 3-4 sentence plain-English summary of this invoice period for the operations team. Be specific about dollar amounts and flag anything worth investigating. Keep it conversational and actionable — this is for Juan (Inventory & Fulfillment Manager) and Kim (Director of Operations).\n\nPeriod: '+periodLabel()+'\nShipping charges: $'+fmt(shipTotal)+' across '+shipData.length+' shipments\nPick & pack fees: $'+fmt(pickTotal)+' across '+ordCount+' unique orders\nOverhead (storage, mgmt, supplies): $'+fmt(overhead)+'\nCredits received: $'+fmt(credits)+' ('+autoCredits.length+' credit line items)\nTop carrier by spend: '+topCarrier+' ($'+fmt(cars[topCarrier]||0)+')\nInternational shipments: '+intlCount+'\nOutlier charges (>$'+OUTLIER_SHIP_THRESHOLD+'): '+outlierCount+'\nOpen credit claims in log: '+creditData.filter(function(c){return c.claim_status==='pending'||c.claim_status==='appealed';}).length+'\n\nWrite only the summary paragraph. No headers, no bullet points.';
+
+  var text=await callAI(prompt,function(model){
+    document.getElementById('aiModelBadge').textContent=model.indexOf('sonnet')>=0?'Sonnet 4':'Haiku 3.5';
+  });
+  narr.className='ai-narrative';
+  narr.textContent=text;
+  btn.disabled=false;btn.textContent='✦ Regenerate';
+}
+
+// ── SHIPPING TABLE ────────────────────────────────────────────────────────────
+function buildShipChips(){
+  var cars={};for(var i=0;i<shipData.length;i++)if(shipData[i].carrier)cars[shipData[i].carrier]=true;
+  var el=document.getElementById('sflt-carrier');
+  var h='<div class="chip on" onclick="setSFlt(\'carrier\',\'ALL\',this)">All</div>';
+  Object.keys(cars).sort().forEach(function(c){h+='<div class="chip" onclick="setSFlt(\'carrier\',\''+esc(c)+'\',this)">'+c+'</div>';});
+  el.innerHTML=h;
+}
+function setSFlt(axis,val,el){
+  if(axis==='carrier'){document.getElementById('sflt-carrier').querySelectorAll('.chip').forEach(function(c){c.className='chip';});sfCarrier=val;}
+  else{['sfc-all','sfc-us','sfc-intl'].forEach(function(id){var e=document.getElementById(id);if(e)e.className='chip';});sfCountry=val;}
+  el.classList.add('on');applyShipFlt();
+}
+function applyShipFlt(){
+  var search=((document.getElementById('sflt-search')||{}).value||'').toLowerCase().trim();
+  var minA=parseFloat((document.getElementById('sflt-min')||{}).value)||0;
+  var maxA=parseFloat((document.getElementById('sflt-max')||{}).value)||Infinity;
+  shipFilt=shipData.filter(function(c){
+    if(sfCarrier!=='ALL'&&c.carrier!==sfCarrier)return false;
+    if(sfCountry==='US'&&c.ship_to_country!=='US')return false;
+    if(sfCountry==='Intl'&&(c.ship_to_country==='US'||!c.ship_to_country))return false;
+    if(search&&((c.order_number||'')+(c.tracking_number||'')+(c.ship_to_city||'')+(c.carrier||'')).toLowerCase().indexOf(search)<0)return false;
+    var amt=parseFloat(c.charge_amount||0);if(amt<minA||amt>maxA)return false;
+    return true;
+  });
+  shipFilt.sort(function(a,b){var av=a[shipSort]||'',bv=b[shipSort]||'';if(typeof av==='number')return shipDir*(av-bv);return shipDir*String(av).localeCompare(String(bv));});
+  shipPage=1;renderShipPage();
+}
+function setShipSort(f){if(shipSort===f)shipDir*=-1;else{shipSort=f;shipDir=-1;}applyShipFlt();}
+function renderShipPage(){
+  var start=(shipPage-1)*PAGE,page=shipFilt.slice(start,start+PAGE);
+  var tb=document.getElementById('shipTb'),em=document.getElementById('shipE');
+  var tot=0;for(var i=0;i<shipFilt.length;i++)tot+=parseFloat(shipFilt[i].charge_amount||0);
+  setText('ship-count',shipFilt.length.toLocaleString());setText('ship-total',shipData.length.toLocaleString());
+  setText('ship-sum','$'+fmt(tot)+' filtered total');
+  if(!shipFilt.length){tb.innerHTML='';em.style.display='block';renderPager('ship-pager',0,shipPage,function(p){shipPage=p;renderShipPage();});return;}
+  em.style.display='none';
+  var html='';
+  for(var i=0;i<page.length;i++){
+    var c=page[i],amt=parseFloat(c.charge_amount||0),isOutlier=amt>OUTLIER_SHIP_THRESHOLD,isIntl=c.ship_to_country&&c.ship_to_country!=='US';
+    var rid='sr'+( start+i);
+    window._shipRows=window._shipRows||{};
+    window._shipRows[rid]={order:c.order_number||'',carrier:c.carrier||'',svc:c.service_level||'',amt:amt,country:c.ship_to_country||'US',pkg:c.package_name||''};
+    html+='<tr'+(isOutlier?' style="background:rgba(255,170,0,.04)"':'')+' id="row-'+rid+'">'+'<td style="font-family:var(--mono);color:var(--text)">'+(c.order_number||'<span style="color:var(--text3)">—</span>')+'</td>'+'<td>'+(c.carrier||'—')+'</td>'+'<td style="font-size:10px;color:var(--text3)">'+(c.service_level||'—')+'</td>'+'<td><span class="badge '+(isIntl?'bc':'bg')+'">'+(c.ship_to_country||'US')+'</span></td>'+'<td style="color:var(--text3)">'+(c.ship_to_state||'—')+'</td>'+'<td style="font-size:10px;color:var(--text2)">'+(c.package_name||'—')+'</td>'+'<td style="font-family:var(--mono);font-size:10px">'+(c.package_weight?c.package_weight+' '+(c.package_weight_unit||'lb'):'—')+'</td>'+'<td style="font-family:var(--mono);color:'+(isOutlier?'var(--amber)':'var(--lime)')+'">$'+fmt(amt)+(isOutlier?' ⚠':'')+'</td>'+'<td style="color:var(--text3);font-size:10px">'+(c.ship_date||'—')+'</td>'+'<td><button class="bsm bsm-lime" onclick="explainShipRowById('+"'"+rid+"'"+')" style="font-size:9px;padding:2px 7px">&#10022;</button></td>'+'</tr>'+'<tr id="erow-'+rid+'" style="display:none"><td colspan="10" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+rid+'" class="ai-explain-text"></div></td></tr>';
+  }
+  tb.innerHTML=html;
+  renderPager('ship-pager',shipFilt.length,shipPage,function(p){shipPage=p;renderShipPage();});
+}
+async function explainShipRowById(rid){
+  var erow=document.getElementById('erow-'+rid),el=document.getElementById(rid);
+  if(!erow||!el)return;
+  if(erow.style.display!=='none'&&el.textContent){erow.style.display='none';return;}
+  erow.style.display='';el.className='ai-explain-text loading';el.textContent='Analyzing...';
+  var info=(window._shipRows&&window._shipRows[rid])||{};
+  var amt=info.amt||0;
+  var prompt='You are an ops analyst for Craighill (NYC design brand, ships via HLC Brooklyn 3PL). In ONE sentence explain this shipping charge and whether it looks normal or needs investigation.\n\nCarrier: '+(info.carrier||'?')+' | Service: '+(info.svc||'?')+' | Package: '+(info.pkg||'?')+' | Destination: '+(info.country||'US')+' | Amount: $'+fmt(amt)+' | Order: '+(info.order||'unknown')+'\nOutlier threshold: $'+OUTLIER_SHIP_THRESHOLD+'\n\nStart with "This $'+fmt(amt)+' charge..."';
+  var text=await callAI(prompt,null);
+  el.className='ai-explain-text';el.textContent=text;
+}
+function clearShipFlt(){sfCarrier='ALL';sfCountry='ALL';['sflt-search','sflt-min','sflt-max'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});buildShipChips();document.getElementById('sfc-all').classList.add('on');applyShipFlt();}
+
+// ── ORDER CHARGES TABLE ───────────────────────────────────────────────────────
+function buildOrdChips(){
+  var pkgs={},cars={};
+  for(var i=0;i<ordData.length;i++){if(ordData[i].package_type)pkgs[ordData[i].package_type]=true;if(ordData[i].carrier)cars[ordData[i].carrier]=true;}
+  var pe=document.getElementById('oflt-pkg');
+  var h='<div class="chip on" onclick="setOFlt(\'pkg\',\'ALL\',this)">All</div>';
+  Object.keys(pkgs).sort().forEach(function(p){h+='<div class="chip" onclick="setOFlt(\'pkg\',\''+esc(p)+'\',this)">'+p.slice(0,18)+'</div>';});
+  pe.innerHTML=h;
+  var ce=document.getElementById('oflt-carrier');
+  var h2='<div class="chip on" onclick="setOFlt(\'carrier\',\'ALL\',this)">All</div>';
+  Object.keys(cars).sort().forEach(function(c){h2+='<div class="chip" onclick="setOFlt(\'carrier\',\''+esc(c)+'\',this)">'+c+'</div>';});
+  ce.innerHTML=h2;
+}
+function setOFlt(axis,val,el){
+  if(axis==='pkg'){document.getElementById('oflt-pkg').querySelectorAll('.chip').forEach(function(c){c.className='chip';});ofPkg=val;}
+  else{document.getElementById('oflt-carrier').querySelectorAll('.chip').forEach(function(c){c.className='chip';});ofCarrier=val;}
+  el.classList.add('on');applyOrdFlt();
+}
+function applyOrdFlt(){
+  var search=((document.getElementById('oflt-search')||{}).value||'').toLowerCase().trim();
+  ordFilt=ordData.filter(function(c){
+    if(ofPkg!=='ALL'&&c.package_type!==ofPkg)return false;
+    if(ofCarrier!=='ALL'&&c.carrier!==ofCarrier)return false;
+    if(search&&((c.order_number||'')+(c.recipient_city||'')).toLowerCase().indexOf(search)<0)return false;
+    return true;
+  });
+  ordFilt.sort(function(a,b){var av=a[ordSort]||'',bv=b[ordSort]||'';if(typeof av==='number')return ordDir*(av-bv);return ordDir*String(av).localeCompare(String(bv));});
+  ordPage=1;renderOrdPage();
+}
+function setOrdSort(f){if(ordSort===f)ordDir*=-1;else{ordSort=f;ordDir=-1;}applyOrdFlt();}
+function renderOrdPage(){
+  var start=(ordPage-1)*PAGE,page=ordFilt.slice(start,start+PAGE);
+  var tb=document.getElementById('ordTb'),em=document.getElementById('ordE');
+  var pickTot=0;for(var i=0;i<ordFilt.length;i++){pickTot+=parseFloat(ordFilt[i].initial_pick_fee_amount||0)+parseFloat(ordFilt[i].additional_pick_fee_amount||0);}
+  setText('ord-count',ordFilt.length.toLocaleString());setText('ord-total',ordData.length.toLocaleString());
+  setText('ord-sum','$'+fmt(pickTot)+' total pick fees (filtered)');
+  if(!ordFilt.length){tb.innerHTML='';em.style.display='block';renderPager('ord-pager',0,ordPage,function(p){ordPage=p;renderOrdPage();});return;}
+  em.style.display='none';
+  var html='';
+  window._ordRows=window._ordRows||{};
+  for(var i=0;i<page.length;i++){
+    var c=page[i];
+    var iP=parseFloat(c.initial_pick_fee_amount||0),aP=parseFloat(c.additional_pick_fee_amount||0);
+    var orid='or'+(start+i);
+    window._ordRows[orid]={order:c.order_number||'',carrier:c.carrier||'',pkg:c.package_type||'',ip:iP,ap:aP,city:(c.recipient_city||'')+(c.recipient_state?','+c.recipient_state:''),country:c.recipient_country||'US'};
+    var aQ=parseFloat(c.additional_pick_fee_qty||0),isHighPick=aQ>OUTLIER_PICK_THRESHOLD;
+    var dims=c.package_length?c.package_length+'×'+c.package_width+'×'+c.package_height:'—';
+    html+='<tr'+(isHighPick?' style="background:rgba(255,170,0,.04)"':'')+'>'+
+      '<td style="font-family:var(--mono);color:var(--text)">'+(c.order_number||'—')+'</td>'+
+      '<td>'+(c.carrier||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+(c.service_level||'—')+'</td>'+
+      '<td style="font-size:10px;color:var(--text2)">'+(c.package_type||'—')+'</td>'+
+      '<td style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+dims+'</td>'+
+      '<td style="font-family:var(--mono);font-size:10px">'+(c.weight_value?c.weight_value+' '+(c.weight_unit||'lb'):'—')+'</td>'+
+      '<td style="font-family:var(--mono);color:var(--cyan)">$'+fmt(iP)+'</td>'+
+      '<td style="font-family:var(--mono);color:'+(aP>0?'var(--amber)':'var(--text3)')+'">$'+fmt(aP)+(isHighPick?' ⚠':'')+'</td>'+
+      '<td style="font-size:10px;color:var(--text3)">'+(c.recipient_city||'')+(c.recipient_state?', '+c.recipient_state:'')+'</td>'+
+      '<td style="color:var(--text3);font-size:10px">'+(c.ship_datetime?c.ship_datetime.slice(0,10):'—')+'</td>'+
+      '<td><button class="bsm bsm-lime" onclick="explainOrdRowById(\''+orid+'\')" style="font-size:9px;padding:2px 7px">&#10022;</button></td>'+
+      '</tr>'+
+      '<tr id="erow-'+orid+'" style="display:none"><td colspan="11" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+orid+'" class="ai-explain-text"></div></td></tr>';
+  }
+  tb.innerHTML=html;
+  renderPager('ord-pager',ordFilt.length,ordPage,function(p){ordPage=p;renderOrdPage();});
+}
+function clearOrdFlt(){ofPkg='ALL';ofCarrier='ALL';var e=document.getElementById('oflt-search');if(e)e.value='';buildOrdChips();applyOrdFlt();}
+
+// ── INVOICE CHARGES TABLE ─────────────────────────────────────────────────────
+function setInvSort(f){if(invSort===f)invDir*=-1;else{invSort=f;invDir=-1;}renderInvoice();}
+function renderInvoice(){
+  var sorted=invData.slice().sort(function(a,b){var av=a[invSort]||'',bv=b[invSort]||'';if(typeof av==='number')return invDir*(av-bv);return invDir*String(av).localeCompare(String(bv));});
+  var start=(invPage-1)*PAGE,page=sorted.slice(start,start+PAGE);
+  var tb=document.getElementById('invTb'),em=document.getElementById('invE');
+  var net=0;for(var i=0;i<invData.length;i++)net+=parseFloat(invData[i].amount||0);
+  setText('inv-sum','Net: $'+fmt(net)+(net<0?' (credit balance)':''));
+  if(!invData.length){tb.innerHTML='';em.style.display='block';return;}
+  em.style.display='none';
+  var html='';
+  for(var i=0;i<page.length;i++){
+    var c=page[i],amt=parseFloat(c.amount||0),isCredit=amt<0||(c.charge_on_invoice||'').toLowerCase()==='credit';
+    var rid='ir'+(start+i);
+    html+='<tr>'+
+      '<td style="color:var(--text3);font-size:10px">'+(c.date_from||'')+(c.date_to?' – '+c.date_to:'')+'</td>'+
+      '<td style="font-family:var(--mono);font-size:9px;color:var(--text3)" title="Invoice ID: '+(c.invoice_id||'')+'">'+(c.invoice_id?c.invoice_id.slice(0,8)+'…':'—')+'</td>'+
+      '<td><span class="badge '+(isCredit?'bt':'bg')+'">'+(c.charge_on_invoice||'—')+'</span></td>'+
+      '<td style="font-family:var(--mono);color:'+(isCredit?'var(--teal)':'var(--text)')+'">$'+fmt(Math.abs(amt))+(isCredit?' CR':'')+'</td>'+
+      '<td style="color:var(--text3)">'+(c.quantity||'—')+'</td>'+
+      '<td style="color:var(--text2);max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(c.description||'—')+'</td>'+
+      '<td><button class="bsm bsm-lime" onclick="explainInvRow(\''+rid+'\',this,\''+esc(c.charge_on_invoice||'')+'\','+Math.abs(amt)+',\''+esc(c.description||'')+'\','+isCredit+')" style="font-size:9px;padding:2px 7px">✦</button></td>'+
+      '</tr>'+
+      '<tr id="erow-'+rid+'" style="display:none"><td colspan="7" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+rid+'" class="ai-explain-text"></div></td></tr>';
+  }
+  tb.innerHTML=html;
+  renderPager('inv-pager',invData.length,invPage,function(p){invPage=p;renderInvoice();});
+}
+async function explainInvRow(rid,btn,type,amt,desc,isCredit){
+  var erow=document.getElementById('erow-'+rid),el=document.getElementById(rid);
+  if(erow.style.display!=='none'&&el.textContent){erow.style.display='none';return;}
+  erow.style.display='';el.className='ai-explain-text loading';el.textContent='Analyzing...';
+  var prompt='You are an ops analyst for Craighill (NYC design brand, 3PL is HLC Brooklyn). In ONE sentence explain this HLC invoice line item and what action (if any) is needed.\n\nCharge type: '+type+' | Amount: $'+fmt(amt)+(isCredit?' (CREDIT)':'')+' | Description: '+desc+'\n\nIf it is a credit, explain what it likely refers to and whether it should be logged in the credit tracker. Start with "This $'+fmt(amt)+' '+(isCredit?'credit':'charge')+'..."';
+  var text=await callAI(prompt,null);
+  el.className='ai-explain-text';el.textContent=text;
+}
+
+// ── CREDIT DETECTION ──────────────────────────────────────────────────────────
+function detectCredits(){
+  var autoCredits=invData.filter(function(c){var a=parseFloat(c.amount||0);return a<0||(c.charge_on_invoice||'').toLowerCase()==='credit';});
+  var list=document.getElementById('autoCredList'),em=document.getElementById('autoCredE');
+  setText('autoCredHint',autoCredits.length+' found in period');
+  if(!list){console.warn('autoCredList not found');return;}
+  if(!autoCredits.length){list.innerHTML='';if(em)em.style.display='block';var mp=document.getElementById('matchPanel');if(mp)mp.style.display='none';return;}
+  if(em)em.style.display='none';
+  var html='';
+  window._credRows=window._credRows||{};
+  for(var i=0;i<autoCredits.length;i++){
+    var c=autoCredits[i],amt=Math.abs(parseFloat(c.amount||0)),rid='acr'+i;
+    window._credRows[rid]={desc:c.description||'',amt:amt,id:c.id||''};
+    html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:12px">'+
+      '<div style="flex:1;min-width:0">'+
+      '<div style="font-size:12px;color:var(--teal);margin-bottom:3px;font-weight:600">$'+fmt(amt)+' Credit</div>'+
+      '<div style="font-size:10px;color:var(--text3);margin-bottom:2px">'+(c.description||'No description')+'</div>'+
+      '<div style="font-size:10px;color:var(--text3)">'+(c.date_from||'')+(c.date_to?' – '+c.date_to:'')+'</div>'+
+      '<div id="'+rid+'" class="ai-explain-text" style="margin-top:6px"></div>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'+
+      '<button class="bsm bsm-lime" data-rid="'+rid+'" onclick="prefillCredById(this.dataset.rid)">+ Log Claim</button>'+
+      '<button class="bsm bsm-amber" data-rid="'+rid+'" onclick="explainCredById(this.dataset.rid)">&#10022; AI</button>'+
+      '</div></div>';
+  }
+  list.innerHTML=html;
+  matchCreditsToLog(autoCredits);
+}
+
+async function explainCredit(rid,amt,desc){
+  var el=document.getElementById(rid);
+  el.className='ai-explain-text loading';el.textContent='Analyzing...';
+  var openClaims=creditData.filter(function(c){return c.claim_status==='pending'||c.claim_status==='appealed';}).map(function(c){return(c.order_number||'')+(c.notes?' ('+c.notes.slice(0,40)+')':'');}).join('; ');
+  var prompt='You are an ops analyst for Craighill. This is an HLC invoice credit. In 1-2 sentences explain what this credit is likely for and whether it should be logged as a resolved claim in the credit tracker.\n\nCredit: $'+fmt(amt)+'\nDescription: '+desc+'\nOpen claims: '+openClaims+'\n\nStart with "This $'+fmt(amt)+' credit..."';
+  var text=await callAI(prompt,null);
+  el.className='ai-explain-text';el.textContent=text;
+}
+
+function matchCreditsToLog(autoCredits){
+  if(!creditData.length){document.getElementById('matchPanel').style.display='none';return;}
+  var matches=[];
+  for(var i=0;i<autoCredits.length;i++){
+    var ac=autoCredits[i],acAmt=Math.abs(parseFloat(ac.amount||0)),acDesc=(ac.description||'').toLowerCase();
+    for(var j=0;j<creditData.length;j++){
+      var cl=creditData[j];
+      if(cl.claim_status==='resolved')continue;
+      var score=0,reasons=[];
+      if(cl.order_number&&acDesc.indexOf(cl.order_number.toLowerCase())>=0){score+=3;reasons.push('order # match');}
+      if(cl.carrier&&acDesc.indexOf((cl.carrier||'').toLowerCase())>=0){score+=1;reasons.push('carrier keyword');}
+      if(cl.amount&&Math.abs(acAmt-cl.amount)<1){score+=2;reasons.push('amount match ($'+fmt(cl.amount)+')');}
+      var notes=(cl.notes||'').toLowerCase().split(/\s+/).filter(function(w){return w.length>4;});
+      for(var k=0;k<notes.length;k++){if(acDesc.indexOf(notes[k])>=0){score+=1;reasons.push('"'+notes[k]+'"');break;}}
+      if(score>=2)matches.push({ac:ac,cl:cl,score:score,reasons:reasons});
+    }
+  }
+  var seen={},best=[];
+  matches.sort(function(a,b){return b.score-a.score;});
+  for(var i=0;i<matches.length;i++){if(!seen[matches[i].cl.id]){seen[matches[i].cl.id]=true;best.push(matches[i]);}}
+  var mp=document.getElementById('matchPanel'),ml=document.getElementById('matchList');
+  if(!best.length){mp.style.display='none';return;}
+  mp.style.display='block';
+  var CONF=['--','LOW','MEDIUM','HIGH','VERY HIGH'];
+  var html='';
+  for(var i=0;i<best.length;i++){
+    var m=best[i],acAmt=Math.abs(parseFloat(m.ac.amount||0)),conf=CONF[Math.min(m.score,4)];
+    html+='<div class="match-card">'+
+      '<div class="match-info">'+
+      '<div class="match-title">Possible match \u2014 $'+fmt(acAmt)+' invoice credit \u2194 logged claim $'+fmt(m.cl.amount||0)+'</div>'+
+      '<div class="match-detail">'+
+      '<strong style="color:var(--text2)">Invoice:</strong> '+(m.ac.description||'No description')+'<br>'+
+      '<strong style="color:var(--text2)">Claim:</strong> '+(m.cl.order_number||'no order')+(m.cl.notes?' \u00b7 '+m.cl.notes.slice(0,80):'')+'<br>'+
+      '<strong style="color:var(--text2)">Signals:</strong> '+m.reasons.join(', ')+' \u00b7 Confidence: <strong style="color:var(--amber)">'+conf+'</strong>'+
+      '</div></div>'+
+      '<div class="match-actions">'+
+      '<button class="bsm bsm-amber" onclick="confirmMatch(\''+m.cl.id+'\',this)">\u2713 Confirm Resolved</button>'+
+      '<button class="bsm bsm-lime" onclick="explainMatch(this,\''+esc(m.ac.description||'')+'\',\''+esc((m.cl.notes||'').slice(0,80))+'\','+acAmt+','+(m.cl.amount||0)+')">&#10022; AI Explain</button>'+
+      '<button class="bsm bsm-gray" onclick="this.closest(\'.match-card\').remove()">\u00d7 Dismiss</button>'+
+      '</div></div>'+
+      '<div class="ai-explain-wrap" id="mexpl-'+i+'" style="display:none"></div>';
+  }
+  ml.innerHTML=html;
+}
+
+async function explainMatch(btn,invDesc,claimNotes,invAmt,claimAmt){
+  var idx=btn.closest('.match-card').nextElementSibling;
+  if(!idx)return;
+  idx.style.display='';
+  idx.innerHTML='<div class="ai-explain-text loading">Analyzing match...</div>';
+  var prompt='You are an ops analyst for Craighill. Explain in 1-2 sentences why this invoice credit likely matches this logged claim, and what the recommended action is.\n\nInvoice credit: $'+fmt(invAmt)+' \u2014 "'+invDesc+'"\nLogged claim: $'+fmt(claimAmt)+' \u2014 notes: "'+claimNotes+'"\n\nBe direct and specific.';
+  var text=await callAI(prompt,null);
+  idx.innerHTML='<div class="ai-explain-text">'+text+'</div>';
+}
+
+async function confirmMatch(claimId,btn){
+  btn.disabled=true;btn.textContent='Saving...';
+  var existing=creditData.find(function(c){return c.id===claimId;})||{};
+  await sb.from('credit_log').update({claim_status:'resolved',updated_at:new Date().toISOString(),notes:(existing.notes||'')+' [Matched '+new Date().toISOString().slice(0,10)+']'}).eq('id',claimId);
+  toast('Marked resolved','ok');btn.closest('.match-card').remove();loadCredits();
+}
+
+function prefillClaim(desc,amt,invoiceId){
+  goTab('credits');
+  document.getElementById('cr-a').value=amt;
+  document.getElementById('cr-lid').value=invoiceId;
+  document.getElementById('cr-n').value='Auto-detected: '+desc;
+  document.getElementById('cr-p').value=periodLabel();
+  toast('Prefilled \u2014 add order # and save','info');
+}
+
+async function saveClaim(){
+  var amount=parseFloat(document.getElementById('cr-a').value);
+  if(!amount||isNaN(amount)){toast('Amount required','err');return;}
+  var r=await sb.from('credit_log').insert({order_number:gv('cr-o')||null,carrier:gv('cr-c')||null,amount:amount,contact_name:gv('cr-cn')||null,contact_email:gv('cr-em')||null,invoice_period:gv('cr-p')||null,claim_status:gv('cr-st'),notes:gv('cr-n')||null,created_by:document.getElementById('usel').value,linked_invoice_id:gv('cr-lid')||null});
+  if(r.error){toast('Save failed: '+r.error.message,'err');return;}
+  toast('Claim saved','ok');clearClaim();loadCredits();
+}
+
+function renderCredits(){
+  var tb=document.getElementById('crTb'),em=document.getElementById('crE');
+  setText('cnt-cr',creditData.length);
+  if(!creditData.length){tb.innerHTML='';em.style.display='block';setText('crTotal','$0.00');return;}
+  em.style.display='none';
+  var tot=0,rec=0,open=0;
+  for(var i=0;i<creditData.length;i++){tot+=creditData[i].amount||0;if(creditData[i].claim_status==='approved'||creditData[i].claim_status==='resolved')rec+=creditData[i].amount||0;if(creditData[i].claim_status==='pending'||creditData[i].claim_status==='appealed')open++;}
+  setText('crTotal','$'+fmt(tot)+' total exposure');
+  setText('cr-exp','$'+fmt(tot));setText('cr-rec','$'+fmt(rec));
+  setText('cr-rate',tot>0?(rec/tot*100).toFixed(0)+'%':'0%');setText('cr-open',open);
+  var SC={pending:'ba',approved:'bl',denied:'bm',appealed:'bc',resolved:'bt'};
+  var html='';
+  for(var i=0;i<creditData.length;i++){
+    var c=creditData[i],cid='crexpl'+i;
+    html+='<tr>'+
+      '<td style="font-family:var(--mono)">'+(c.order_number||'\u2014')+'</td>'+
+      '<td style="color:var(--text3);font-size:10px">'+(c.invoice_period||'\u2014')+'</td>'+
+      '<td>'+(c.carrier||'\u2014')+'</td>'+
+      '<td style="font-family:var(--mono);color:var(--magenta)">$'+fmt(c.amount||0)+'</td>'+
+      '<td style="font-size:10px">'+(c.contact_name||'\u2014')+'</td>'+
+      '<td><span class="badge '+(SC[c.claim_status]||'bg')+'">'+c.claim_status+'</span></td>'+
+      '<td>'+(c.linked_invoice_id?'<span class="badge bt" style="font-size:9px">matched</span>':'<span style="color:var(--text3);font-size:9px">\u2014</span>')+'</td>'+
+      '<td style="font-size:10px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(c.notes||'')+'">'+(c.notes||'\u2014')+'</td>'+
+      '<td style="color:var(--text3);font-size:10px">'+(c.created_by||'\u2014')+'</td>'+
+      '<td><button class="bsm bsm-lime" onclick="explainClaim(\''+cid+'\',\''+esc(c.order_number||'')+'\',\''+esc(c.carrier||'')+'\','+(c.amount||0)+',\''+esc(c.claim_status)+'\',\''+esc((c.notes||'').slice(0,100))+'\')" style="font-size:9px;padding:2px 7px">&#10022;</button></td>'+
+      '<td><button class="bsm bsm-gray" onclick="cycleStatus(\''+c.id+'\',\''+c.claim_status+'\')">&#8594;</button></td>'+
+      '</tr>'+
+      '<tr id="erow-'+cid+'" style="display:none"><td colspan="11" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+cid+'" class="ai-explain-text"></div></td></tr>';
+  }
+  tb.innerHTML=html;
+  var autoCredits=invData.filter(function(c){var a=parseFloat(c.amount||0);return a<0||(c.charge_on_invoice||'').toLowerCase()==='credit';});
+  if(autoCredits.length)matchCreditsToLog(autoCredits);
+}
+
+async function explainClaim(rid,order,carrier,amt,status,notes){
+  var erow=document.getElementById('erow-'+rid),el=document.getElementById(rid);
+  if(erow.style.display!=='none'&&el.textContent){erow.style.display='none';return;}
+  erow.style.display='';el.className='ai-explain-text loading';el.textContent='Analyzing...';
+  var prompt='You are an ops analyst for Craighill. In 1-2 sentences summarize the status of this credit claim and recommend the best next action.\n\nOrder: '+(order||'unknown')+' | Carrier: '+(carrier||'unknown')+' | Amount: $'+fmt(amt)+' | Status: '+status+' | Notes: '+notes+'\n\nBe specific.';
+  var text=await callAI(prompt,null);
+  el.className='ai-explain-text';el.textContent=text;
+}
+
+async function cycleStatus(id,cur){
+  var s=['pending','approved','denied','appealed','resolved'];
+  var next=s[(s.indexOf(cur)+1)%s.length];
+  await sb.from('credit_log').update({claim_status:next,updated_at:new Date().toISOString()}).eq('id',id);
+  toast('Status \u2192 '+next,'info');loadCredits();
+}
+function clearClaim(){['cr-o','cr-c','cr-a','cr-cn','cr-em','cr-p','cr-n','cr-lid'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});document.getElementById('cr-st').value='pending';}
+
+function goTab(n){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');if(n==='credits'){if(!invData.length){loadInvoice().then(function(){detectCredits();renderCredits();});}else{setTimeout(function(){detectCredits();renderCredits();},100);}}}
+function setText(id,val){var el=document.getElementById(id);if(el)el.innerHTML=String(val);}
+function gv(id){return document.getElementById(id)?document.getElementById(id).value:'';}
+function fmt(n){return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtK(n){if(n>=10000)return(n/1000).toFixed(1)+'k';return n.toFixed(0);}
+function esc(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"');}
+function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'info')+' show';clearTimeout(t._to);t._to=setTimeout(function(){t.classList.remove('show');},3500);}
+
+// ── DRAW OVERVIEW CHARTS ──────────────────────────────────────────────────────
+function drawOverviewCharts(){
+  var COLS=['#b8ff3c','#00e5ff','#ff2d9b','#ffaa00','#7c3aed','#ff6b35','#50d0a0'];
+  var cv=document.getElementById('donutCv');
+  if(cv&&shipData.length){
+    var W=140,R=55,ri=35,ctx=setupCanvas(cv,W,W);
+    var cars={};for(var i=0;i<shipData.length;i++){var n=shipData[i].carrier||'Unknown';cars[n]=(cars[n]||0)+parseFloat(shipData[i].charge_amount||0);}
+    var sorted=[];for(var n in cars)sorted.push([n,cars[n]]);sorted.sort(function(a,b){return b[1]-a[1];});
+    var tot=0;for(var i=0;i<sorted.length;i++)tot+=sorted[i][1];
+    if(tot>0){var cx=W/2,cy=W/2,angle=-Math.PI/2;for(var i=0;i<sorted.length;i++){var sl=(sorted[i][1]/tot)*Math.PI*2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R,angle,angle+sl);ctx.closePath();ctx.fillStyle=COLS[i%COLS.length];ctx.fill();angle+=sl;}ctx.beginPath();ctx.arc(cx,cy,ri,0,Math.PI*2);ctx.fillStyle='#060608';ctx.fill();ctx.fillStyle='#b8ff3c';ctx.font='bold 10px Rajdhani,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('$'+fmtK(tot),cx,cy);}
+    var legHtml='';for(var i=0;i<Math.min(sorted.length,6);i++)legHtml+='<div class="li"><div class="ld" style="background:'+COLS[i%COLS.length]+'"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">'+sorted[i][0]+'</span><span style="font-family:var(--mono);font-size:10px;color:var(--text3)">$'+fmtK(sorted[i][1])+'</span></div>';
+    var leg=document.getElementById('donutLeg');if(leg)leg.innerHTML=legHtml;
+  }
+  var states={};for(var i=0;i<shipData.length;i++){var s=shipData[i].ship_to_state||'--';states[s]=(states[s]||0)+parseFloat(shipData[i].charge_amount||0);}
+  var ss=[];for(var n in states)ss.push([n,states[n]]);ss.sort(function(a,b){return b[1]-a[1];});ss=ss.slice(0,10);
+  if(ss.length)drawHBar2('stateCv',ss.map(function(x){return x[0];}),ss.map(function(x){return x[1];}),COLS[0],35,true);
+
+  // Carrier Volume donut (shipment count)
+  var cv2=document.getElementById('carrVolCv');
+  if(cv2&&shipData.length){
+    var W2=140,R2=55,ri2=35,ctx2=setupCanvas(cv2,W2,W2);
+    var carVol={};for(var i=0;i<shipData.length;i++){var n=shipData[i].carrier||'Unknown';carVol[n]=(carVol[n]||0)+1;}
+    var sortedVol=[];for(var n in carVol)sortedVol.push([n,carVol[n]]);sortedVol.sort(function(a,b){return b[1]-a[1];});
+    var totVol=shipData.length;
+    if(totVol>0){var cx2=W2/2,cy2=W2/2,angle2=-Math.PI/2;for(var i=0;i<sortedVol.length;i++){var sl2=(sortedVol[i][1]/totVol)*Math.PI*2;ctx2.beginPath();ctx2.moveTo(cx2,cy2);ctx2.arc(cx2,cy2,R2,angle2,angle2+sl2);ctx2.closePath();ctx2.fillStyle=COLS[i%COLS.length];ctx2.fill();angle2+=sl2;}ctx2.beginPath();ctx2.arc(cx2,cy2,ri2,0,Math.PI*2);ctx2.fillStyle='#060608';ctx2.fill();ctx2.fillStyle='#b8ff3c';ctx2.font='bold 10px Rajdhani,sans-serif';ctx2.textAlign='center';ctx2.textBaseline='middle';ctx2.fillText(totVol.toLocaleString(),cx2,cy2);}
+    var legHtml2='';for(var i=0;i<Math.min(sortedVol.length,6);i++){var pct=totVol>0?(sortedVol[i][1]/totVol*100).toFixed(1):'0';legHtml2+='<div class="li"><div class="ld" style="background:'+COLS[i%COLS.length]+'"></div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">'+sortedVol[i][0]+'</span><span style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+pct+'%</span></div>';}
+    var leg2=document.getElementById('carrVolLeg');if(leg2)leg2.innerHTML=legHtml2;
+  }
+  var svcs={};for(var i=0;i<shipData.length;i++){var s=shipData[i].service_level||'Unknown';svcs[s]=(svcs[s]||0)+parseFloat(shipData[i].charge_amount||0);}
+  var sv=[];for(var n in svcs)sv.push([n,svcs[n]]);sv.sort(function(a,b){return b[1]-a[1];});sv=sv.slice(0,6);
+  if(sv.length)drawHBar2('svcCv',sv.map(function(x){return x[0];}),sv.map(function(x){return x[1];}),COLS[1],120,true);
+  var pkgs={};for(var i=0;i<ordData.length;i++){var p=ordData[i].package_type||'Unknown';pkgs[p]=(pkgs[p]||0)+1;}
+  var pk=[];for(var n in pkgs)pk.push([n,pkgs[n]]);pk.sort(function(a,b){return b[1]-a[1];});pk=pk.slice(0,6);
+  if(pk.length)drawHBar2('pkgCv',pk.map(function(x){return x[0];}),pk.map(function(x){return x[1];}),COLS[2],120,false);
+}
+
+// ── PAGER ─────────────────────────────────────────────────────────────────────
+function renderPager(id,total,cur,onPage){
+  var pages=Math.ceil(total/PAGE)||1,p=document.getElementById(id);
+  if(!p)return;
+  if(pages<=1){p.innerHTML='';return;}
+  var h='';
+  if(cur>1)h+='<button onclick="('+onPage.toString()+')('+(cur-1)+')">&#8592;</button>';
+  var s=Math.max(1,cur-2),e=Math.min(pages,cur+2);
+  for(var i=s;i<=e;i++)h+='<button class="'+(i===cur?'cur':'')+'" onclick="('+onPage.toString()+')('+i+')">'+i+'</button>';
+  if(cur<pages)h+='<button onclick="('+onPage.toString()+')('+(cur+1)+')">&#8594;</button>';
+  p.innerHTML=h;
+}
+
+// ── EXPORTS ───────────────────────────────────────────────────────────────────
+function exportShip(){
+  if(!shipFilt.length){toast('No data','warn');return;}
+  var cols=['order_number','tracking_number','carrier','service_level','ship_date','ship_to_city','ship_to_state','ship_to_country','package_name','package_weight','charge_amount'];
+  var rows=[cols.join(',')];
+  shipFilt.forEach(function(c){rows.push(cols.map(function(k){var v=c[k]===null||c[k]===undefined?'':c[k];return '"'+String(v).replace(/"/g,'""')+'"';}).join(','));});
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download='shipping_'+periodLabel().replace(/[^a-z0-9]/gi,'_')+'.csv';a.click();
+  toast('Exported '+shipFilt.length+' rows','ok');
+}
+function exportOrders(){
+  if(!ordFilt.length){toast('No data','warn');return;}
+  var cols=['order_number','carrier','service_level','package_type','weight_value','weight_unit','initial_pick_fee_amount','additional_pick_fee_amount','recipient_city','recipient_state','recipient_country'];
+  var rows=[cols.join(',')];
+  ordFilt.forEach(function(c){rows.push(cols.map(function(k){var v=c[k]===null||c[k]===undefined?'':c[k];return '"'+String(v).replace(/"/g,'""')+'"';}).join(','));});
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download='orders_'+periodLabel().replace(/[^a-z0-9]/gi,'_')+'.csv';a.click();
+  toast('Exported '+ordFilt.length+' rows','ok');
+}
+
+// ── HIGHLIGHT ─────────────────────────────────────────────────────────────────
+function highlight(text,q){
+  if(!q||!text)return text||'';
+  var re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+  return String(text).replace(re,'<span class="hl">$1</span>');
+}
+
+// ── SEARCH ────────────────────────────────────────────────────────────────────
+async function runSearch(){
+  var q=(document.getElementById('srch-q').value||'').trim().toLowerCase();
+  if(!q){toast('Enter a search term','warn');return;}
+  var res=document.getElementById('srchResults');
+  res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Searching...</div>';
+  var results=[];
+  shipData.forEach(function(c){if(((c.order_number||'')+(c.tracking_number||'')+(c.ship_to_city||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Shipping',srcBadge:'bl',order:c.order_number,detail:(c.carrier||'')+' -> '+(c.ship_to_city||'')+(c.ship_to_country?', '+c.ship_to_country:''),amount:c.charge_amount,date:c.ship_date});});
+  ordData.forEach(function(c){if(((c.order_number||'')+(c.recipient_city||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Order',srcBadge:'bc',order:c.order_number,detail:(c.package_type||'')+' - '+(c.carrier||'')+' -> '+(c.recipient_city||''),amount:(parseFloat(c.initial_pick_fee_amount||0)+parseFloat(c.additional_pick_fee_amount||0)),date:c.ship_datetime?c.ship_datetime.slice(0,10):''});});
+  invData.forEach(function(c){if(((c.description||'')+(c.charge_on_invoice||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Invoice',srcBadge:parseFloat(c.amount||0)<0?'bt':'ba',order:null,detail:(c.charge_on_invoice||'')+': '+(c.description||''),amount:c.amount,date:c.date_from});});
+  creditData.forEach(function(c){if(((c.order_number||'')+(c.notes||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Credit',srcBadge:'bm',order:c.order_number,detail:(c.carrier||'')+' - '+c.claim_status,amount:c.amount,date:c.invoice_period});});
+  if(!results.length){res.innerHTML='<div class="empty"><div class="empty-i">&#9672;</div><div class="empty-t">No results for "'+q+'"</div></div>';return;}
+  var html='<div style="font-size:10px;color:var(--text3);margin-bottom:10px">'+results.length+' results for "<span style="color:var(--lime)">'+q+'</span>"</div>';
+  html+='<div class="tw"><table><thead><tr><th>Source</th><th>Order #</th><th>Detail</th><th>Amount</th><th>Date</th></tr></thead><tbody>';
+  results.slice(0,200).forEach(function(r){html+='<tr><td><span class="badge '+r.srcBadge+'">'+r.src+'</span></td><td style="font-family:var(--mono);color:var(--text)">'+(r.order||'--')+'</td><td style="font-size:10px;color:var(--text2)">'+(r.detail||'')+'</td><td style="font-family:var(--mono);color:var(--lime)">$'+fmt(Math.abs(parseFloat(r.amount||0)))+'</td><td style="color:var(--text3);font-size:10px">'+(r.date||'--')+'</td></tr>';});
+  html+='</tbody></table></div>';
+  res.innerHTML=html;
+}
+
+// ── COMPARE ───────────────────────────────────────────────────────────────────
+function setCmpQ(side){
+  var q=document.getElementById('cmp-'+side+'-q').value;
+  if(!q||!QUARTERS[q])return;
+  document.getElementById('cmp-'+side+'-from').value=QUARTERS[q].from;
+  document.getElementById('cmp-'+side+'-to').value=QUARTERS[q].to;
+}
+
+async function runCompare(){
+  var aFrom=document.getElementById('cmp-a-from').value,aTo=document.getElementById('cmp-a-to').value;
+  var bFrom=document.getElementById('cmp-b-from').value,bTo=document.getElementById('cmp-b-to').value;
+  if(!aFrom||!aTo||!bFrom||!bTo){toast('Set both date ranges','warn');return;}
+  var res=document.getElementById('cmpResults');
+  res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Loading...</div>';
+  document.getElementById('cmpAiBtn').style.display='none';
+  document.getElementById('cmpAiResult').style.display='none';
+  var rA=await sb.from('rails_shipping_charges').select('*').gte('date_from',aFrom).lte('date_to',aTo).range(0,4999);
+  var rOA=await sb.from('rails_order_charges_deduped').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',aFrom).lte('date_to',aTo).range(0,4999);
+  var rB=await sb.from('rails_shipping_charges').select('*').gte('date_from',bFrom).lte('date_to',bTo).range(0,4999);
+  var rOB=await sb.from('rails_order_charges_deduped').select('order_number,initial_pick_fee_amount,additional_pick_fee_amount').gte('date_from',bFrom).lte('date_to',bTo).range(0,4999);
+  cmpDataA={ship:rA.data||[],orders:rOA.data||[],label:aFrom+' to '+aTo};
+  cmpDataB={ship:rB.data||[],orders:rOB.data||[],label:bFrom+' to '+bTo};
+  function cs(d){var t=0,p=0,cars={},intl=0,u={};for(var i=0;i<d.ship.length;i++){t+=parseFloat(d.ship[i].charge_amount||0);var c=d.ship[i].carrier||'Unknown';cars[c]=(cars[c]||0)+parseFloat(d.ship[i].charge_amount||0);if(d.ship[i].ship_to_country&&d.ship[i].ship_to_country!=='US')intl++;}for(var i=0;i<d.orders.length;i++){p+=parseFloat(d.orders[i].initial_pick_fee_amount||0)+parseFloat(d.orders[i].additional_pick_fee_amount||0);if(d.orders[i].order_number)u[d.orders[i].order_number]=true;}var oc=Object.keys(u).length;return{shipTot:t,pickTot:p,ordCnt:oc,intl:intl,carriers:cars,avg:oc>0?t/oc:0,topCarrier:Object.keys(cars).sort(function(a,b){return cars[b]-cars[a];})[0]||'--'};}
+  var sA=cs(cmpDataA),sB=cs(cmpDataB);
+  var COLS=['#b8ff3c','#00e5ff'];
+  var html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">';
+  [{s:sA,d:cmpDataA},{s:sB,d:cmpDataB}].forEach(function(item,idx){
+    var s=item.s,col=COLS[idx];
+    html+='<div class="cpanel" style="border-top:2px solid '+col+'"><div class="ph"><div class="pt2" style="color:'+col+'">Period '+(idx===0?'A':'B')+'</div><span style="font-size:10px;color:var(--text3)">'+item.d.label+'</span></div><div class="cb"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px"><div><div class="ml">Ship Cost</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:'+col+'">$'+fmt(s.shipTot)+'</div></div><div><div class="ml">Pick Fees</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:var(--cyan)">$'+fmt(s.pickTot)+'</div></div><div><div class="ml">Orders</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:var(--text)">'+s.ordCnt+'</div></div><div><div class="ml">Avg/Ship</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:var(--purple)">$'+fmt(s.avg)+'</div></div><div><div class="ml">Intl</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:var(--amber)">'+s.intl+'</div></div><div><div class="ml">Top Carrier</div><div style="font-family:var(--head);font-size:12px;font-weight:700;color:var(--text2);margin-top:4px">'+s.topCarrier+'</div></div></div>';
+    Object.keys(s.carriers).sort(function(a,b){return s.carriers[b]-s.carriers[a];}).slice(0,5).forEach(function(c){html+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--text2)">'+c+'</span><span style="font-family:var(--mono);color:'+col+'">$'+fmt(s.carriers[c])+'</span></div>';});
+    html+='</div></div>';
+  });
+  html+='</div>';
+  function dc(v){return v>0?'var(--magenta)':v<0?'var(--teal)':'var(--text3)';}
+  function ds(v,m){return(v>=0?'+':'')+(m?'$'+fmt(Math.abs(v)):v)+(v>0?' up':v<0?' down':'');}
+  var dS=sB.shipTot-sA.shipTot,dP=sB.pickTot-sA.pickTot,dO=sB.ordCnt-sA.ordCnt,dA=sB.avg-sA.avg;
+  html+='<div class="cpanel"><div class="ph"><div class="pt2">Delta A to B</div></div><div class="cb"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px"><div><div class="ml">Shipping</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:'+dc(dS)+'">'+ds(dS,true)+'</div></div><div><div class="ml">Pick Fees</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:'+dc(dP)+'">'+ds(dP,true)+'</div></div><div><div class="ml">Orders</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:'+dc(dO)+'">'+ds(dO,false)+'</div></div><div><div class="ml">Avg/Ship</div><div style="font-family:var(--head);font-size:22px;font-weight:700;color:'+dc(dA)+'">'+ds(dA,true)+'</div></div></div></div></div>';
+  res.innerHTML=html;
+  document.getElementById('cmpAiBtn').style.display='';
+}
+
+async function runCompareAI(){
+  var btn=document.getElementById('cmpAiBtn'),res=document.getElementById('cmpAiResult'),txt=document.getElementById('cmpAiText');
+  if(!cmpDataA||!cmpDataB){toast('Run comparison first','warn');return;}
+  btn.disabled=true;btn.textContent='Generating...';
+  res.style.display='block';txt.className='ai-narrative loading';txt.textContent='Analyzing...';
+  function s(d){var t=0,p=0,u={};for(var i=0;i<d.ship.length;i++)t+=parseFloat(d.ship[i].charge_amount||0);for(var i=0;i<d.orders.length;i++){p+=parseFloat(d.orders[i].initial_pick_fee_amount||0)+parseFloat(d.orders[i].additional_pick_fee_amount||0);if(d.orders[i].order_number)u[d.orders[i].order_number]=true;}return{ship:t,pick:p,ords:Object.keys(u).length};}
+  var sA=s(cmpDataA),sB=s(cmpDataB);
+  var prompt='You are an ops analyst for Craighill (NYC design brand, 3PL is HLC Brooklyn). Write 3-4 sentences comparing these two invoice periods. Highlight cost changes, volume changes, and anything worth flagging.\n\nPeriod A ('+cmpDataA.label+'): shipping $'+fmt(sA.ship)+', pick fees $'+fmt(sA.pick)+', orders '+sA.ords+'\nPeriod B ('+cmpDataB.label+'): shipping $'+fmt(sB.ship)+', pick fees $'+fmt(sB.pick)+', orders '+sB.ords+'\n\nNo bullets. Write as a concise ops brief.';
+  var text=await callAI(prompt,function(model){document.getElementById('cmpAiModel').textContent=model.indexOf('sonnet')>=0?'Sonnet 4':'Haiku 3.5';});
+  txt.className='ai-narrative';txt.textContent=text;
+  btn.disabled=false;btn.textContent='Regenerate';
+}
+
+
+
+// ── CANVAS HELPERS ────────────────────────────────────────────────────────────
+function setupCanvas(cv,w,h){
+  var dpr=window.devicePixelRatio||1;
+  cv.width=w*dpr;cv.height=h*dpr;
+  cv.style.width=w+'px';cv.style.height=h+'px';
+  var ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  return ctx;
+}
+
+function drawHBar2(id,labels,data,color,lW,money){
+  var cv=document.getElementById(id);
+  if(!cv||!labels.length)return;
+  var W=cv.parentElement?cv.parentElement.offsetWidth||400:400;
+  var H=parseInt(cv.style.height)||160;
+  var ctx=setupCanvas(cv,W,H);
+  ctx.clearRect(0,0,W,H);
+  var maxV=0;for(var i=0;i<data.length;i++)if(data[i]>maxV)maxV=data[i];
+  if(!maxV)maxV=1;
+  var lWw=lW||80;
+  var bH=Math.max(Math.floor((H-10)/Math.max(labels.length,1))-3,8);
+  for(var i=0;i<labels.length;i++){
+    var y=5+i*(bH+3);
+    var bLen=Math.floor((data[i]/maxV)*(W-lWw-65));
+    ctx.fillStyle='#66668a';
+    ctx.font='10px Share Tech Mono,monospace';
+    ctx.textAlign='right';
+    ctx.fillText(String(labels[i]).slice(0,Math.max(Math.floor(lWw/7),4)),lWw-4,y+bH/2+3);
+    ctx.fillStyle=color+'22';ctx.fillRect(lWw,y,bLen,bH);
+    ctx.strokeStyle=color;ctx.lineWidth=1;ctx.strokeRect(lWw,y,bLen,bH);
+    ctx.fillStyle=color;ctx.font='bold 11px Rajdhani,sans-serif';ctx.textAlign='left';
+    ctx.fillText(money?('$'+fmtK(data[i])):String(data[i]),lWw+bLen+4,y+bH/2+3);
+  }
+}
+
+// ── SUPABASE PAGINATED FETCH ──────────────────────────────────────────────────
+async function fetchAll(table,filters){
+  // Use large batch size matching PostgREST max (10k set via ALTER ROLE)
+  // Fewer round trips = faster load, less rate limit risk
+  var allRows=[],batchSize=9999,from=0,maxBatches=10;
+  for(var batch=0;batch<maxBatches;batch++){
+    var q=sb.from(table).select('*');
+    if(filters&&filters.q!=='ALL'){
+      q=q.gte('date_from',filters.gte_from).lte('date_to',filters.lte_to);
+    }
+    q=q.range(from,from+batchSize-1);
+    var r=await q;
+    if(r.error){console.error('fetchAll:',r.error.message);break;}
+    if(!r.data||r.data.length===0)break;
+    allRows=allRows.concat(r.data);
+    if(r.data.length<batchSize)break;
+    from+=batchSize;
+  }
+  return allRows;
+}
+
+
+async function explainOrdRowById(rid){
+  var erow=document.getElementById('erow-'+rid),el=document.getElementById(rid);
+  if(!erow||!el)return;
+  if(erow.style.display!=='none'&&el.textContent){erow.style.display='none';return;}
+  erow.style.display='';el.className='ai-explain-text loading';el.textContent='Analyzing...';
+  var info=(window._ordRows&&window._ordRows[rid])||{};
+  var prompt='You are an ops analyst for Craighill (NYC design brand, ships via HLC Brooklyn 3PL). In ONE sentence explain these pick/pack fees and whether they look normal.\n\nOrder: '+(info.order||'?')+' | Carrier: '+(info.carrier||'?')+' | Package: '+(info.pkg||'?')+' | Destination: '+info.city+' ('+info.country+') | Initial pick: $'+fmt(info.ip||0)+' | Add\'l pick: $'+fmt(info.ap||0)+'\nOutlier threshold: '+OUTLIER_PICK_THRESHOLD+' additional picks\n\nStart with \"These fees..."';
+  var text=await callAI(prompt,null);
+  el.className='ai-explain-text';el.textContent=text;
+}
+
+function prefillCredById(rid){
+  var d=window._credRows&&window._credRows[rid];
+  if(!d)return;
+  prefillClaim(d.desc,d.amt,d.id);
+}
+async function explainCredById(rid){
+  var d=window._credRows&&window._credRows[rid];
+  if(!d)return;
+  explainCredit(rid,d.amt,d.desc);
+}
+
+init();
+</script>
+</body>
+</html>
