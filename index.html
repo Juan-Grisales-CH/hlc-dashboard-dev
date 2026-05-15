@@ -328,7 +328,7 @@ tr:hover td{background:var(--panel2)}
       </div>
     </div>
   </div>
-  <!-- DUP SUMMARY PANEL — only shown when duplicate order charges detected in current period -->
+  <!-- DUP SUMMARY PANEL — auto-shows when same-period duplicates detected; toggleable -->
   <div id="dupPanel" style="display:none;margin:0 0 12px;border:1px solid rgba(255,170,0,.35);background:rgba(255,170,0,.04);border-radius:4px;padding:12px 16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div>
@@ -337,7 +337,7 @@ tr:hover td{background:var(--panel2)}
       </div>
       <div style="display:flex;gap:6px">
         <button class="bsm bsm-lime" onclick="runDupAI()" id="dupAiBtn" style="font-size:9px;padding:3px 10px">✦ AI Analysis</button>
-        <button class="vbtn vbtn-gray vbtn-sm" onclick="document.getElementById('dupPanel').style.display='none'">Dismiss</button>
+        <button class="vbtn vbtn-gray vbtn-sm" onclick="toggleDupPanel(false)">Hide ↑</button>
       </div>
     </div>
     <div style="overflow-x:auto">
@@ -348,13 +348,18 @@ tr:hover td{background:var(--panel2)}
           <th style="text-align:right;padding:4px 8px;color:var(--text3);font-weight:400;border-bottom:1px solid var(--border2)">Occurrences</th>
           <th style="text-align:right;padding:4px 8px;color:var(--text3);font-weight:400;border-bottom:1px solid var(--border2)">Total Billed</th>
           <th style="text-align:right;padding:4px 8px;color:var(--text3);font-weight:400;border-bottom:1px solid var(--border2)">Per Charge</th>
-          <th style="text-align:left;padding:4px 8px;color:var(--text3);font-weight:400;border-bottom:1px solid var(--border2)">Invoice Periods</th>
+          <th style="text-align:left;padding:4px 8px;color:var(--text3);font-weight:400;border-bottom:1px solid var(--border2)">Invoice Period</th>
           <th style="text-align:right;padding:4px 8px;color:var(--text3);font-weight:400;border-bottom:1px solid var(--border2)">Potential Overbilled</th>
         </tr></thead>
         <tbody id="dupTb"></tbody>
       </table>
     </div>
     <div id="dupAiResult" style="display:none;margin-top:10px;padding:10px;background:rgba(0,0,0,.2);border-radius:3px;font-size:11px;line-height:1.6;color:var(--text2)"></div>
+  </div>
+  <!-- DUP RECALL BAR — compact bar shown when panel is hidden but DUPs still exist -->
+  <div id="dupRecall" style="display:none;margin:0 0 10px;padding:6px 12px;background:rgba(255,170,0,.07);border:1px solid rgba(255,170,0,.25);border-radius:3px;align-items:center;justify-content:space-between">
+    <span style="font-size:10px;color:var(--amber)">⚠ <span id="dupRecallTxt"></span></span>
+    <button class="vbtn vbtn-gray vbtn-sm" onclick="toggleDupPanel(true)" style="font-size:9px">Show duplicates ↓</button>
   </div>
   <div class="tw">
     <div class="tbl-ctrl">
@@ -867,6 +872,78 @@ function applyShipFlt(){
   runDupCheck();
 }
 function setShipSort(f){if(shipSort===f)shipDir*=-1;else{shipSort=f;shipDir=-1;}applyShipFlt();}
+
+// ── DUP DETECTION + PANEL ────────────────────────────────────────────────────
+function toggleDupPanel(show){
+  var panel=document.getElementById('dupPanel');
+  var recall=document.getElementById('dupRecall');
+  if(!panel||!recall)return;
+  if(show){panel.style.display='block';recall.style.display='none';}
+  else{panel.style.display='none';recall.style.display='flex';}
+}
+function runDupCheck(){
+  var panel=document.getElementById('dupPanel');
+  var recall=document.getElementById('dupRecall');
+  var tb=document.getElementById('dupTb');
+  var cntEl=document.getElementById('dupCount');
+  var recallTxt=document.getElementById('dupRecallTxt');
+  if(!shipData||!shipData.length||!panel||!tb)return;
+  // Same invoice period only — cross-period appearances are not flagged
+  var groups={};
+  for(var i=0;i<shipData.length;i++){
+    var row=shipData[i];var on=row.order_number||'';if(!on)continue;
+    var key=on+'||'+(row.date_from||'');
+    if(!groups[key])groups[key]={order:on,period:row.date_from||'',rows:[]};
+    groups[key].rows.push(row);
+  }
+  var dups=[];for(var k in groups){if(groups[k].rows.length>1)dups.push(groups[k]);}
+  if(!dups.length){panel.style.display='none';if(recall)recall.style.display='none';return;}
+  dups.sort(function(a,b){
+    var tA=0,tB=0;
+    for(var i=0;i<a.rows.length;i++)tA+=parseFloat(a.rows[i].charge_amount||0);
+    for(var i=0;i<b.rows.length;i++)tB+=parseFloat(b.rows[i].charge_amount||0);
+    return tB-tA;
+  });
+  var totalOver=0,html='';
+  for(var d=0;d<dups.length;d++){
+    var g=dups[d],total=0,carriers={};
+    for(var i=0;i<g.rows.length;i++){total+=parseFloat(g.rows[i].charge_amount||0);var car=g.rows[i].carrier||'—';carriers[car]=(carriers[car]||0)+1;}
+    var perCharge=total/g.rows.length,over=total-perCharge;totalOver+=over;
+    html+='<tr style="border-bottom:1px solid var(--border)">'
+      +'<td style="padding:5px 8px;font-family:var(--mono);color:var(--text)">'+g.order+'</td>'
+      +'<td style="padding:5px 8px;color:var(--text2)">'+Object.keys(carriers).join(', ')+'</td>'
+      +'<td style="padding:5px 8px;text-align:right;color:var(--amber)">'+g.rows.length+'×</td>'
+      +'<td style="padding:5px 8px;text-align:right;font-family:var(--mono);color:var(--magenta)">$'+fmt(total)+'</td>'
+      +'<td style="padding:5px 8px;text-align:right;font-family:var(--mono);color:var(--text3)">$'+fmt(perCharge)+'</td>'
+      +'<td style="padding:5px 8px;color:var(--text3);font-size:10px">'+g.period+'</td>'
+      +'<td style="padding:5px 8px;text-align:right;font-family:var(--mono);color:var(--teal)">$'+fmt(over)+'</td>'
+      +'</tr>';
+  }
+  html+='<tr style="border-top:2px solid var(--border2)"><td colspan="6" style="padding:6px 8px;font-size:10px;color:var(--text3)">Total potential overbilling across '+dups.length+' group'+(dups.length>1?'s':'')+'</td><td style="padding:6px 8px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--teal)">$'+fmt(totalOver)+'</td></tr>';
+  tb.innerHTML=html;
+  var summary=dups.length+' group'+(dups.length>1?'s':'')+' · $'+fmt(totalOver)+' potential overbilling';
+  if(cntEl)cntEl.textContent=summary;if(recallTxt)recallTxt.textContent=summary;
+  var aiRes=document.getElementById('dupAiResult');if(aiRes)aiRes.style.display='none';
+  var aiBtn=document.getElementById('dupAiBtn');if(aiBtn){aiBtn.disabled=false;aiBtn.textContent='✦ AI Analysis';}
+  window._dupGroups=dups;window._dupTotalOver=totalOver;
+  panel.style.display='block';if(recall)recall.style.display='none';
+}
+async function runDupAI(){
+  var btn=document.getElementById('dupAiBtn'),res=document.getElementById('dupAiResult');
+  if(!window._dupGroups||!window._dupGroups.length)return;
+  btn.disabled=true;btn.textContent='Analyzing...';
+  res.style.display='block';res.textContent='Analyzing duplicates...';
+  var lines=[];
+  for(var d=0;d<Math.min(window._dupGroups.length,15);d++){
+    var g=window._dupGroups[d],total=0;
+    for(var i=0;i<g.rows.length;i++)total+=parseFloat(g.rows[i].charge_amount||0);
+    var perCharge=total/g.rows.length;
+    lines.push('Order '+g.order+': '+g.rows.length+'× on '+g.rows[0].carrier+', $'+fmt(total)+' total ($'+fmt(perCharge)+' each), period '+g.period+', potential overbilling $'+fmt(total-perCharge));
+  }
+  var prompt='You are an ops analyst for Craighill (NYC design brand, 3PL is HLC Brooklyn). These '+window._dupGroups.length+' shipping charge groups appear as same-invoice-period duplicates — the same order billed more than once within the same billing period.\n\n'+lines.join('\n')+'\n\nTotal potential overbilling: $'+fmt(window._dupTotalOver||0)+'\n\nIn 3-4 sentences: assess whether these look like genuine billing errors or possible legitimate scenarios (split shipments, partial deliveries), what the investigation priority is, and the recommended next step with HLC billing.';
+  var text=await callAI(prompt,null);
+  res.textContent=text;btn.disabled=false;btn.textContent='✦ AI Analysis';
+}
 function renderShipPage(){
   var start=(shipPage-1)*PAGE,page=shipFilt.slice(start,start+PAGE);
   var tb=document.getElementById('shipTb'),em=document.getElementById('shipE');
@@ -913,117 +990,6 @@ async function explainShipRowById(rid){
   el.className='ai-explain-text';el.textContent=text;
 }
 function clearShipFlt(){sfCarrier='ALL';sfCountry='ALL';['sflt-search','sflt-min','sflt-max'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});buildShipChips();document.getElementById('sfc-all').classList.add('on');applyShipFlt();}
-
-// ── DUP DETECTION ─────────────────────────────────────────────────────────────
-// Groups shipping rows by order_number within the SAME invoice period.
-// Cross-period appearances are NOT flagged (reship in Q2 of Q1 order = legitimate).
-function runDupCheck(){
-  var panel=document.getElementById('dupPanel');
-  var tb=document.getElementById('dupTb');
-  var cntEl=document.getElementById('dupCount');
-  if(!shipData||!shipData.length||!panel||!tb){return;}
-
-  // Group by order_number + date_from (same invoice period only)
-  var groups={};
-  for(var i=0;i<shipData.length;i++){
-    var row=shipData[i];
-    var on=row.order_number||'';
-    if(!on)continue;
-    // Key = order_number + invoice period (date_from)
-    var periodKey=row.date_from||'';
-    var key=on+'||'+periodKey;
-    if(!groups[key])groups[key]={order:on,period:periodKey,rows:[]};
-    groups[key].rows.push(row);
-  }
-
-  // Find groups with more than 1 row = genuine same-period duplicate
-  var dups=[];
-  for(var k in groups){
-    if(groups[k].rows.length>1)dups.push(groups[k]);
-  }
-
-  if(!dups.length){
-    panel.style.display='none';
-    return;
-  }
-
-  // Sort by total billed descending
-  dups.sort(function(a,b){
-    var tA=0,tB=0;
-    for(var i=0;i<a.rows.length;i++)tA+=parseFloat(a.rows[i].charge_amount||0);
-    for(var i=0;i<b.rows.length;i++)tB+=parseFloat(b.rows[i].charge_amount||0);
-    return tB-tA;
-  });
-
-  var totalOverbilled=0;
-  var html='';
-  for(var d=0;d<dups.length;d++){
-    var g=dups[d];
-    var total=0;
-    var carriers={};
-    var periods=[];
-    for(var i=0;i<g.rows.length;i++){
-      var amt=parseFloat(g.rows[i].charge_amount||0);
-      total+=amt;
-      var car=g.rows[i].carrier||'—';
-      carriers[car]=(carriers[car]||0)+1;
-      var p=g.rows[i].date_from||'?';
-      if(periods.indexOf(p)<0)periods.push(p);
-    }
-    var perCharge=g.rows.length>0?total/g.rows.length:0;
-    var overbilled=total-perCharge; // total minus one legitimate charge
-    totalOverbilled+=overbilled;
-    var carrierStr=Object.keys(carriers).join(', ');
-    html+='<tr style="border-bottom:1px solid var(--border)">'
-      +'<td style="padding:5px 8px;font-family:var(--mono);color:var(--text)">'+g.order+'</td>'
-      +'<td style="padding:5px 8px;color:var(--text2)">'+carrierStr+'</td>'
-      +'<td style="padding:5px 8px;text-align:right;color:var(--amber)">'+g.rows.length+'×</td>'
-      +'<td style="padding:5px 8px;text-align:right;font-family:var(--mono);color:var(--magenta)">$'+fmt(total)+'</td>'
-      +'<td style="padding:5px 8px;text-align:right;font-family:var(--mono);color:var(--text3)">$'+fmt(perCharge)+'</td>'
-      +'<td style="padding:5px 8px;color:var(--text3);font-size:10px">'+periods.join(', ')+'</td>'
-      +'<td style="padding:5px 8px;text-align:right;font-family:var(--mono);color:var(--teal)">$'+fmt(overbilled)+'</td>'
-      +'</tr>';
-  }
-
-  // Summary footer row
-  html+='<tr style="border-top:2px solid var(--border2)">'
-    +'<td colspan="6" style="padding:6px 8px;font-size:10px;color:var(--text3)">Total potential overbilling across '+dups.length+' duplicate group'+(dups.length>1?'s':'')+'</td>'
-    +'<td style="padding:6px 8px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--teal)">$'+fmt(totalOverbilled)+'</td>'
-    +'</tr>';
-
-  tb.innerHTML=html;
-  cntEl.textContent=dups.length+' group'+(dups.length>1?'s':'')+' · $'+fmt(totalOverbilled)+' potential overbilling';
-  panel.style.display='block';
-  // Reset AI result if panel is refreshed
-  var aiRes=document.getElementById('dupAiResult');
-  if(aiRes)aiRes.style.display='none';
-  // Store dups for AI
-  window._dupGroups=dups;
-}
-
-async function runDupAI(){
-  var btn=document.getElementById('dupAiBtn');
-  var res=document.getElementById('dupAiResult');
-  if(!window._dupGroups||!window._dupGroups.length)return;
-  btn.disabled=true;btn.textContent='Analyzing...';
-  res.style.display='block';res.textContent='Analyzing duplicates...';
-  // Build summary for AI
-  var lines=[];
-  var totalOverbilled=0;
-  for(var d=0;d<Math.min(window._dupGroups.length,15);d++){
-    var g=window._dupGroups[d];
-    var total=0;
-    for(var i=0;i<g.rows.length;i++)total+=parseFloat(g.rows[i].charge_amount||0);
-    var perCharge=total/g.rows.length;
-    var over=total-perCharge;
-    totalOverbilled+=over;
-    lines.push('Order '+g.order+': '+g.rows.length+' charges on '+g.rows[0].carrier+', $'+fmt(total)+' total ($'+fmt(perCharge)+' each), period '+g.period+', potential overbilling $'+fmt(over));
-  }
-  var prompt='You are an ops analyst for Craighill (NYC design brand, 3PL is HLC Brooklyn). The following '+window._dupGroups.length+' shipping charge groups appear to be same-invoice-period duplicates — the same order number billed more than once within the same billing period.\n\n'+lines.join('\n')+'\n\nTotal potential overbilling: $'+fmt(totalOverbilled)+'\n\nIn 3-4 sentences: assess whether these look like genuine billing errors or possible legitimate scenarios (split shipments, partial deliveries, etc.), what the priority for investigation is, and what the recommended next step with HLC should be.';
-  var text=await callAI(prompt,null);
-  res.textContent=text;
-  btn.disabled=false;btn.textContent='✦ AI Analysis';
-}
 
 // ── ORDER CHARGES TABLE ───────────────────────────────────────────────────────
 function buildOrdChips(){
