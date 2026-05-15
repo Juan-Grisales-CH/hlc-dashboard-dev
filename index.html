@@ -347,6 +347,8 @@ tr:hover td{background:var(--panel2)}
       <th onclick="setShipSort('package_weight')">Weight</th>
       <th onclick="setShipSort('charge_amount')">Charge</th>
       <th onclick="setShipSort('ship_date')">Ship Date</th>
+      <th title="Discrepancy Type — only set when flagging an issue">DT</th>
+      <th title="Charge Type — always populated">CT</th>
       <th>AI</th>
     </tr></thead><tbody id="shipTb"></tbody></table>
     <div class="empty" id="shipE" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No results</div></div>
@@ -609,7 +611,7 @@ async function loadAll(){
   document.getElementById('aiNarrative').style.display='none';
   document.getElementById('aiNarrative').textContent='';
   // Reset taxonomy tags on period change (row IDs shift with new data)
-  window._invTags={};window._ordTags={};
+  window._invTags={};window._ordTags={};window._shipTags={};
   setText('periodStatus','Loading shipping...');
   await loadShipping();
   setText('periodStatus','Loading orders...');
@@ -850,7 +852,22 @@ function renderShipPage(){
     var rid='sr'+( start+i);
     window._shipRows=window._shipRows||{};
     window._shipRows[rid]={order:c.order_number||'',carrier:c.carrier||'',svc:c.service_level||'',amt:amt,country:c.ship_to_country||'US',pkg:c.package_name||''};
-    html+='<tr'+(isOutlier?' style="background:rgba(255,170,0,.04)"':'')+' id="row-'+rid+'">'+'<td style="font-family:var(--mono);color:var(--text)">'+(c.order_number||'<span style="color:var(--text3)">—</span>')+'</td>'+'<td>'+(c.carrier||'—')+'</td>'+'<td style="font-size:10px;color:var(--text3)">'+(c.service_level||'—')+'</td>'+'<td><span class="badge '+(isIntl?'bc':'bg')+'">'+(c.ship_to_country||'US')+'</span></td>'+'<td style="color:var(--text3)">'+(c.ship_to_state||'—')+'</td>'+'<td style="font-size:10px;color:var(--text2)">'+(c.package_name||'—')+'</td>'+'<td style="font-family:var(--mono);font-size:10px">'+(c.package_weight?c.package_weight+' '+(c.package_weight_unit||'lb'):'—')+'</td>'+'<td style="font-family:var(--mono);color:'+(isOutlier?'var(--amber)':'var(--lime)')+'">$'+fmt(amt)+(isOutlier?' ⚠':'')+'</td>'+'<td style="color:var(--text3);font-size:10px">'+(c.ship_date||'—')+'</td>'+'<td><button class="bsm bsm-lime" onclick="explainShipRowById('+"'"+rid+"'"+')" style="font-size:9px;padding:2px 7px">&#10022;</button></td>'+'</tr>'+'<tr id="erow-'+rid+'" style="display:none"><td colspan="10" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+rid+'" class="ai-explain-text"></div></td></tr>';
+    _initShipTags(rid,c);
+    html+='<tr'+(isOutlier?' style="background:rgba(255,170,0,.04)"':'')+' id="row-'+rid+'">'
+      +'<td style="font-family:var(--mono);color:var(--text)">'+(c.order_number||'<span style="color:var(--text3)">—</span>')+'</td>'
+      +'<td>'+(c.carrier||'—')+'</td>'
+      +'<td style="font-size:10px;color:var(--text3)">'+(c.service_level||'—')+'</td>'
+      +'<td><span class="badge '+(isIntl?'bc':'bg')+'">'+(c.ship_to_country||'US')+'</span></td>'
+      +'<td style="color:var(--text3)">'+(c.ship_to_state||'—')+'</td>'
+      +'<td style="font-size:10px;color:var(--text2)">'+(c.package_name||'—')+'</td>'
+      +'<td style="font-family:var(--mono);font-size:10px">'+(c.package_weight?c.package_weight+' '+(c.package_weight_unit||'lb'):'—')+'</td>'
+      +'<td style="font-family:var(--mono);color:'+(isOutlier?'var(--amber)':'var(--lime)')+'">$'+fmt(amt)+(isOutlier?' ⚠':'')+'</td>'
+      +'<td style="color:var(--text3);font-size:10px">'+(c.ship_date||'—')+'</td>'
+      +'<td>'+_dtSel('_shipTags',rid)+'</td>'
+      +'<td>'+_ctSel('_shipTags',rid)+'</td>'
+      +'<td><button class="bsm bsm-lime" onclick="explainShipRowById('+"'"+rid+"'"+')" style="font-size:9px;padding:2px 7px">&#10022;</button></td>'
+      +'</tr>'
+      +'<tr id="erow-'+rid+'" style="display:none"><td colspan="13" style="padding:0 14px 10px;background:rgba(0,0,0,.2)"><div id="'+rid+'" class="ai-explain-text"></div></td></tr>';
   }
   tb.innerHTML=html;
   renderPager('ship-pager',shipFilt.length,shipPage,function(p){shipPage=p;renderShipPage();});
@@ -1393,26 +1410,28 @@ async function explainCredById(rid){
 }
 
 // ── 3-AXIS INVOICE TAXONOMY ───────────────────────────────────────────────────
-// DT = Discrepancy Type (action trigger — what you do about it)
-// CT = Charge Type (cost anatomy — what the charge actually is)
-var DT_OPTIONS=['—','DUP','RATE','DIM','ACC','SVC-FAIL','SVC-MISMATCH','TAX-DUTY','DATA','OTHER','INFO'];
-var CT_OPTIONS=['—','BASE_RATE','FLAVORCLOUD','PICK_UNIT','PICK_HOURLY','FUEL','RESIDENTIAL','SIGNATURE','ADDRESS_CORR','DIM_WEIGHT','OVERSIZE','REMOTE','CUSTOMS_DUTY','INSURANCE','RETURN','UNKNOWN'];
+// DT = Discrepancy Type — only populated when something is actually wrong (action trigger)
+// CT = Charge Type — always populated on every row (cost anatomy)
+//
+// DT rules: blank by default. Only set when a real discrepancy is detected or manually flagged.
+// CT rules: always auto-detected. Every charge has an anatomy.
+
+var DT_OPTIONS=['—','DUP','OVERCHARGE','RATE','DIM','SVC-FAIL','SVC-MISMATCH','OTHER'];
+var CT_OPTIONS=['—','BASE_RATE','FLAVORCLOUD','PICK_UNIT','PICK_HOURLY','FUEL','RESIDENTIAL','SIGNATURE','ADDRESS_CORR','DIM_WEIGHT','OVERSIZE','REMOTE','CUSTOMS_DUTY','INSURANCE','RETURN','STORAGE','BOX_CHARGE','UNKNOWN'];
+
 var DT_DESC={
-  'DUP':'Duplicate charge — same order billed twice',
-  'RATE':'Rate error — wrong rate applied vs contract',
-  'DIM':'Dimensional weight error — incorrect dims used',
-  'ACC':'Accessorial charge — surcharge dispute',
-  'SVC-FAIL':'Service failure — late, lost, or damaged',
-  'SVC-MISMATCH':'Service mismatch — billed service ≠ shipped service',
-  'TAX-DUTY':'Tax or duty — customs/VAT line item',
-  'DATA':'Data error — incorrect field in charge record',
-  'OTHER':'Other — use notes for detail',
-  'INFO':'Informational — no action needed'
+  'DUP':'Duplicate charge — same order billed twice in same period',
+  'OVERCHARGE':'Charge higher than expected vs. contract or norms',
+  'RATE':'Rate error — wrong contracted rate applied',
+  'DIM':'Dimensional weight calculated incorrectly',
+  'SVC-FAIL':'Service failure — late, lost, or damaged shipment',
+  'SVC-MISMATCH':'Wrong carrier or service used vs. what was specified',
+  'OTHER':'Discrepancy that does not fit above — add context'
 };
 var CT_DESC={
-  'BASE_RATE':'Base carrier rate charge',
+  'BASE_RATE':'Base carrier shipping charge',
   'FLAVORCLOUD':'FlavorCloud international shipping fee',
-  'PICK_UNIT':'Standard per-unit pick fee (INITIAL_PICK + ADD_PICK)',
+  'PICK_UNIT':'Standard per-unit pick fee (initial + additional)',
   'PICK_HOURLY':'HLC hourly rate for high-count orders (500+ units)',
   'FUEL':'Fuel surcharge',
   'RESIDENTIAL':'Residential delivery surcharge',
@@ -1422,71 +1441,112 @@ var CT_DESC={
   'OVERSIZE':'Oversize package surcharge',
   'REMOTE':'Remote area delivery surcharge',
   'CUSTOMS_DUTY':'Customs duty or import tax',
-  'INSURANCE':'Shipping insurance',
+  'INSURANCE':'Shipping insurance charge',
   'RETURN':'Return shipment fee',
-  'UNKNOWN':'Unknown — investigate charge source'
+  'STORAGE':'Storage or account management fee',
+  'BOX_CHARGE':'HLC packaging/box materials charge',
+  'UNKNOWN':'Charge source unclear — needs investigation'
 };
+
 // In-memory tag store keyed by row id (persists for session; reset on period change)
-var _invTags={},_ordTags={};
+var _invTags={},_ordTags={},_shipTags={};
 function setTag(store,rid,axis,val){if(!store[rid])store[rid]={};store[rid][axis]=val;}
 function getTag(store,rid,axis){return(store[rid]&&store[rid][axis])||'';}
 
-// ── AUTO-DETECT TAXONOMY FROM ROW DATA ───────────────────────────────────────
-// CT inference for Invoice Charges rows (based on charge_on_invoice + description)
+// ── AUTO-DETECT CT (always populated) ────────────────────────────────────────
+
+function _autoCtShip(row){
+  // Shipping tab: based on carrier + service level
+  var carrier=(row.carrier||'').toLowerCase();
+  var svc=(row.service_level||'').toLowerCase();
+  if(carrier.indexOf('flavorcloud')>=0||carrier.indexOf('flavor')>=0)return'FLAVORCLOUD';
+  if(svc.indexOf('residential')>=0)return'RESIDENTIAL';
+  if(svc.indexOf('fuel')>=0)return'FUEL';
+  if(svc.indexOf('signature')>=0)return'SIGNATURE';
+  if(svc.indexOf('remote')>=0)return'REMOTE';
+  if(svc.indexOf('oversize')>=0)return'OVERSIZE';
+  if(svc.indexOf('address')>=0)return'ADDRESS_CORR';
+  if(svc.indexOf('insurance')>=0)return'INSURANCE';
+  if(svc.indexOf('return')>=0)return'RETURN';
+  return'BASE_RATE'; // most shipping rows are base carrier charges
+}
+
+function _autoCtOrd(row){
+  // Order Charges tab: pick fee anatomy
+  var aQ=parseFloat(row.additional_pick_fee_qty||0);
+  var boxAmt=parseFloat(row.box_charge_amount||0);
+  var carrier=(row.carrier||'').toLowerCase();
+  var svc=(row.service_level||'').toLowerCase();
+  if(aQ>OUTLIER_PICK_THRESHOLD)return'PICK_HOURLY';
+  if(carrier.indexOf('flavorcloud')>=0||carrier.indexOf('flavor')>=0)return'FLAVORCLOUD';
+  if(boxAmt>0)return'BOX_CHARGE';
+  if(svc.indexOf('residential')>=0)return'RESIDENTIAL';
+  // Default: order charges are pick fees
+  var iP=parseFloat(row.initial_pick_fee_amount||0),aP=parseFloat(row.additional_pick_fee_amount||0);
+  if(iP>0||aP>0)return'PICK_UNIT';
+  return'UNKNOWN';
+}
+
 function _autoCtInv(row){
+  // Invoice Charges tab: based on charge_on_invoice type + description keywords
   var type=(row.charge_on_invoice||'').toLowerCase();
   var desc=(row.description||'').toLowerCase();
   var amt=parseFloat(row.amount||0);
-  if(type==='credit'||amt<0)return'RETURN'; // credits often are return/refund credits
-  if(desc.indexOf('storage')>=0||desc.indexOf('account management')>=0||desc.indexOf('account mgmt')>=0)return'UNKNOWN'; // overhead
+  if(type==='credit'||amt<0)return'RETURN';
+  if(desc.indexOf('storage')>=0||desc.indexOf('account management')>=0||desc.indexOf('account mgmt')>=0)return'STORAGE';
+  if(desc.indexOf('box')>=0||desc.indexOf('packaging material')>=0||desc.indexOf('pack material')>=0)return'BOX_CHARGE';
   if(desc.indexOf('flavorcloud')>=0||desc.indexOf('flavor cloud')>=0)return'FLAVORCLOUD';
   if(desc.indexOf('fuel')>=0)return'FUEL';
   if(desc.indexOf('residential')>=0)return'RESIDENTIAL';
   if(desc.indexOf('dim')>=0||desc.indexOf('dimensional')>=0)return'DIM_WEIGHT';
   if(desc.indexOf('oversize')>=0||desc.indexOf('over size')>=0)return'OVERSIZE';
   if(desc.indexOf('signature')>=0)return'SIGNATURE';
-  if(desc.indexOf('address')>=0&&desc.indexOf('correct')>=0)return'ADDRESS_CORR';
+  if(desc.indexOf('address')>=0&&(desc.indexOf('correct')>=0||desc.indexOf('corr')>=0))return'ADDRESS_CORR';
   if(desc.indexOf('remote')>=0)return'REMOTE';
   if(desc.indexOf('insurance')>=0)return'INSURANCE';
-  if(desc.indexOf('duty')>=0||desc.indexOf('customs')>=0||desc.indexOf('import')>=0)return'CUSTOMS_DUTY';
-  if(desc.indexOf('pick')>=0||type.indexOf('pick')>=0)return'PICK_UNIT';
+  if(desc.indexOf('duty')>=0||desc.indexOf('customs')>=0||desc.indexOf('import tax')>=0)return'CUSTOMS_DUTY';
   if(desc.indexOf('hourly')>=0)return'PICK_HOURLY';
-  if(type.indexOf('base')>=0||type.indexOf('rate')>=0)return'BASE_RATE';
+  if(desc.indexOf('pick')>=0||type.indexOf('pick')>=0)return'PICK_UNIT';
+  if(type.indexOf('base')>=0||type.indexOf('rate')>=0||type.indexOf('ship')>=0)return'BASE_RATE';
   return'UNKNOWN';
 }
-// DT inference for Invoice Charges rows
+
+// ── AUTO-DETECT DT (blank unless real discrepancy found) ─────────────────────
+// Returns '' (blank) for normal charges — DT is only set when something is wrong
+
+function _autoDtShip(row,allRows){
+  var amt=parseFloat(row.charge_amount||0);
+  // >$300 carrier charge = OVERCHARGE flag
+  if(amt>OUTLIER_SHIP_THRESHOLD)return'OVERCHARGE';
+  // Duplicate order number in same dataset = DUP
+  if(row.order_number&&allRows){
+    var count=0;for(var i=0;i<allRows.length;i++){if(allRows[i].order_number===row.order_number)count++;}
+    if(count>1)return'DUP';
+  }
+  return''; // blank — no discrepancy detected
+}
+
+function _autoDtOrd(row){
+  // >500 additional pick units = likely PICK_HOURLY candidate = OVERCHARGE flag
+  var aQ=parseFloat(row.additional_pick_fee_qty||0);
+  if(aQ>OUTLIER_PICK_THRESHOLD)return'OVERCHARGE';
+  return''; // blank — no discrepancy detected
+}
+
 function _autoDtInv(row){
   var desc=(row.description||'').toLowerCase();
   var amt=parseFloat(row.amount||0);
-  if(amt<0||(row.charge_on_invoice||'').toLowerCase()==='credit')return'INFO'; // credits are informational
-  if(desc.indexOf('duplicate')>=0||desc.indexOf('dup')>=0)return'DUP';
-  if(desc.indexOf('correction')>=0||desc.indexOf('adjust')>=0)return'DATA';
-  if(desc.indexOf('duty')>=0||desc.indexOf('customs')>=0||desc.indexOf('vat')>=0||desc.indexOf('tax')>=0)return'TAX-DUTY';
-  return'INFO'; // default — informational, no action needed
+  // Credits are not discrepancies — blank
+  if(amt<0||(row.charge_on_invoice||'').toLowerCase()==='credit')return'';
+  // Explicit duplicate keyword in description
+  if(desc.indexOf('duplicate')>=0||desc.indexOf('dup ')>=0)return'DUP';
+  return''; // blank — no discrepancy detected
 }
-// CT inference for Order Charges rows
-function _autoCtOrd(row){
-  var aQ=parseFloat(row.additional_pick_fee_qty||0);
-  var carrier=(row.carrier||'').toLowerCase();
-  var svc=(row.service_level||'').toLowerCase();
-  if(aQ>OUTLIER_PICK_THRESHOLD)return'PICK_HOURLY';
-  if(carrier.indexOf('flavorcloud')>=0||carrier.indexOf('flavor')>=0)return'FLAVORCLOUD';
-  if(svc.indexOf('residential')>=0)return'RESIDENTIAL';
-  if(svc.indexOf('standard')>=0||svc.indexOf('ground')>=0||svc.indexOf('express')>=0||svc.indexOf('priority')>=0)return'BASE_RATE';
-  return'PICK_UNIT'; // order charges are fundamentally pick fees
-}
-// DT inference for Order Charges rows
-function _autoDtOrd(row){
-  var aQ=parseFloat(row.additional_pick_fee_qty||0);
-  var carrier=(row.carrier||'').toLowerCase();
-  if(aQ>OUTLIER_PICK_THRESHOLD)return'ACC'; // accessorial — high pick count warrants review
-  if(carrier.indexOf('flavorcloud')>=0)return'INFO'; // FlavorCloud is expected for intl
-  return'INFO';
-}
-// Init tags for a row if not already set (auto-detect on first render)
-function _initInvTags(rid,row){
-  if(!window._invTags[rid]){
-    window._invTags[rid]={dt:_autoDtInv(row),ct:_autoCtInv(row)};
+
+// ── INIT TAG STORES ───────────────────────────────────────────────────────────
+function _initShipTags(rid,row){
+  if(!window._shipTags[rid]){
+    window._shipTags[rid]={dt:_autoDtShip(row,shipData),ct:_autoCtShip(row)};
   }
 }
 function _initOrdTags(rid,row){
@@ -1494,18 +1554,41 @@ function _initOrdTags(rid,row){
     window._ordTags[rid]={dt:_autoDtOrd(row),ct:_autoCtOrd(row)};
   }
 }
+function _initInvTags(rid,row){
+  if(!window._invTags[rid]){
+    window._invTags[rid]={dt:_autoDtInv(row),ct:_autoCtInv(row)};
+  }
+}
 function _dtSel(storeKey,rid){
+  // DT is blank by default — only highlighted when a real discrepancy is flagged
   var cur=(window[storeKey]&&window[storeKey][rid]&&window[storeKey][rid].dt)||'';
-  var isSel=cur&&cur!=='—';
-  var html='<select class="tax-sel'+(isSel?' dt-set':'')+'" title="DT: '+(DT_DESC[cur]||'Discrepancy Type — action trigger')+'" onchange="if(!window[\''+storeKey+'\'])window[\''+storeKey+'\']={}; if(!window[\''+storeKey+'\'][\''+rid+'\'])window[\''+storeKey+'\'][\''+rid+'\']={}; window[\''+storeKey+'\'][\''+rid+'\'][\'dt\']=this.value; this.className=\'tax-sel\'+(this.value&&this.value!==\'—\'?\' dt-set\':\'\'); this.title=\'DT: \'+(DT_DESC[this.value]||\'Discrepancy Type\')">';
-  DT_OPTIONS.forEach(function(o){html+='<option'+(o===cur?' selected':'')+'>'+o+'</option>';});
+  var display=cur||'—';
+  var isFlagged=cur&&cur!=='—';
+  var html='<select class="tax-sel'+(isFlagged?' dt-set':'')+'" title="DT: '+(DT_DESC[cur]||'No discrepancy flagged')+'" onchange="'
+    +'if(!window[\''+storeKey+'\'])window[\''+storeKey+'\']={}; '
+    +'if(!window[\''+storeKey+'\'][\''+rid+'\'])window[\''+storeKey+'\'][\''+rid+'\']={}; '
+    +'var v=this.value===\'—\'?\'\'  :this.value; '
+    +'window[\''+storeKey+'\'][\''+rid+'\'][\'dt\']=v; '
+    +'this.className=\'tax-sel\'+(v?\' dt-set\':\'\'); '
+    +'this.title=\'DT: \'+(DT_DESC[v]||\'No discrepancy flagged\')">';
+  // Always show — as first option
+  html+='<option value="—"'+((!cur||cur==='—')?' selected':'')+'>—</option>';
+  DT_OPTIONS.filter(function(o){return o!=='—';}).forEach(function(o){
+    html+='<option'+(o===cur?' selected':'')+'>'+o+'</option>';
+  });
   return html+'</select>';
 }
 function _ctSel(storeKey,rid){
-  var cur=(window[storeKey]&&window[storeKey][rid]&&window[storeKey][rid].ct)||'';
-  var isSel=cur&&cur!=='—';
-  var html='<select class="tax-sel'+(isSel?' ct-set':'')+'" title="CT: '+(CT_DESC[cur]||'Charge Type — cost anatomy')+'" onchange="if(!window[\''+storeKey+'\'])window[\''+storeKey+'\']={}; if(!window[\''+storeKey+'\'][\''+rid+'\'])window[\''+storeKey+'\'][\''+rid+'\']={}; window[\''+storeKey+'\'][\''+rid+'\'][\'ct\']=this.value; this.className=\'tax-sel\'+(this.value&&this.value!==\'—\'?\' ct-set\':\'\'); this.title=\'CT: \'+(CT_DESC[this.value]||\'Charge Type\')">';
-  CT_OPTIONS.forEach(function(o){html+='<option'+(o===cur?' selected':'')+'>'+o+'</option>';});
+  // CT is always populated — no blank option at top
+  var cur=(window[storeKey]&&window[storeKey][rid]&&window[storeKey][rid].ct)||'UNKNOWN';
+  var html='<select class="tax-sel ct-set" title="CT: '+(CT_DESC[cur]||'Charge Type')+'" onchange="'
+    +'if(!window[\''+storeKey+'\'])window[\''+storeKey+'\']={}; '
+    +'if(!window[\''+storeKey+'\'][\''+rid+'\'])window[\''+storeKey+'\'][\''+rid+'\']={}; '
+    +'window[\''+storeKey+'\'][\''+rid+'\'][\'ct\']=this.value; '
+    +'this.title=\'CT: \'+(CT_DESC[this.value]||\'Charge Type\')">';
+  CT_OPTIONS.filter(function(o){return o!=='—';}).forEach(function(o){
+    html+='<option'+(o===cur?' selected':'')+'>'+o+'</option>';
+  });
   return html+'</select>';
 }
 
