@@ -400,8 +400,8 @@ tr:hover td{background:var(--panel2)}
       </div>
     </div>
     <div class="flt-row">
-      <div class="flt-grp"><div class="flt-lbl">Package Type</div><div class="flt-chips" id="oflt-pkg"><div class="chip on" onclick="setOFlt('pkg','ALL',this)">All</div></div></div>
-      <div class="flt-grp"><div class="flt-lbl">Carrier</div><div class="flt-chips" id="oflt-carrier"><div class="chip on" onclick="setOFlt('carrier','ALL',this)">All</div></div></div>
+      <div class="flt-grp"><div class="flt-lbl">Package Type</div><select class="mono-sel" id="oflt-pkg" onchange="setOFltSel('pkg',this.value)" style="min-width:140px"><option value="ALL">All Types</option></select></div>
+      <div class="flt-grp"><div class="flt-lbl">Carrier</div><select class="mono-sel" id="oflt-carrier" onchange="setOFltSel('carrier',this.value)" style="min-width:120px"><option value="ALL">All Carriers</option></select></div>
       <div class="flt-grp"><div class="flt-lbl">Search</div><input class="flt-input" id="oflt-search" placeholder="CRA order #..." oninput="applyOrdFlt()" style="width:180px"></div>
     </div>
   </div>
@@ -563,12 +563,26 @@ tr:hover td{background:var(--panel2)}
 <!-- ══ SEARCH TAB ══ -->
 <div class="tc" id="tc-search">
   <div style="background:var(--panel2);border:1px solid var(--border2);padding:16px;margin-bottom:14px">
-    <div style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">// Universal Search — all tables · all periods</div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <input class="flt-input" id="srch-q" placeholder="Order # (CRA146835), tracking number, city, country, keyword (Turkey, KOHEZI)..." style="flex:1;font-size:12px;padding:8px 12px" onkeydown="if(event.key==='Enter')runSearch()">
+    <div style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">// Universal Search — all tables · current period data</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <input class="flt-input" id="srch-q" placeholder="Order # (CRA146835), tracking number, city, country, keyword (Turkey, KOHEZI)..." style="flex:1;min-width:200px;font-size:12px;padding:8px 12px" onkeydown="if(event.key==='Enter')runSearch()">
       <button class="go-btn" style="padding:8px 20px;font-size:11px" onclick="runSearch()">Search</button>
     </div>
-    <div style="font-size:10px;color:var(--text3);margin-top:6px">Searches: shipping charges · order charges · invoice charges · credit claims · <strong style="color:var(--amber)">not period-filtered</strong></div>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div class="flt-grp">
+        <div class="flt-lbl">Filter by CT</div>
+        <select class="mono-sel" id="srch-ct" style="min-width:130px">
+          <option value="">All Charge Types</option>
+        </select>
+      </div>
+      <div class="flt-grp">
+        <div class="flt-lbl">Filter by DT</div>
+        <select class="mono-sel" id="srch-dt" style="min-width:130px">
+          <option value="">All Discrepancy Types</option>
+        </select>
+      </div>
+      <div style="font-size:10px;color:var(--text3);padding-bottom:2px">CT/DT filter applies to <span style="color:var(--cyan)">current period</span> rows only</div>
+    </div>
   </div>
   <div id="srchResults">
     <div class="empty" id="srchE"><div class="empty-i">◈</div><div class="empty-t">Enter a search query above</div><div class="empty-s">Try a CRA order number, tracking number, or keyword</div></div>
@@ -996,18 +1010,23 @@ function buildOrdChips(){
   var pkgs={},cars={};
   for(var i=0;i<ordData.length;i++){if(ordData[i].package_type)pkgs[ordData[i].package_type]=true;if(ordData[i].carrier)cars[ordData[i].carrier]=true;}
   var pe=document.getElementById('oflt-pkg');
-  var h='<div class="chip on" onclick="setOFlt(\'pkg\',\'ALL\',this)">All</div>';
-  Object.keys(pkgs).sort().forEach(function(p){h+='<div class="chip" onclick="setOFlt(\'pkg\',\''+esc(p)+'\',this)">'+p.slice(0,18)+'</div>';});
-  pe.innerHTML=h;
+  var ph='<option value="ALL">All Types</option>';
+  Object.keys(pkgs).sort().forEach(function(p){ph+='<option value="'+esc(p)+'">'+p.slice(0,22)+'</option>';});
+  pe.innerHTML=ph;pe.value='ALL';ofPkg='ALL';
   var ce=document.getElementById('oflt-carrier');
-  var h2='<div class="chip on" onclick="setOFlt(\'carrier\',\'ALL\',this)">All</div>';
-  Object.keys(cars).sort().forEach(function(c){h2+='<div class="chip" onclick="setOFlt(\'carrier\',\''+esc(c)+'\',this)">'+c+'</div>';});
-  ce.innerHTML=h2;
+  var ch='<option value="ALL">All Carriers</option>';
+  Object.keys(cars).sort().forEach(function(c){ch+='<option value="'+esc(c)+'">'+c+'</option>';});
+  ce.innerHTML=ch;ce.value='ALL';ofCarrier='ALL';
 }
 function setOFlt(axis,val,el){
   if(axis==='pkg'){document.getElementById('oflt-pkg').querySelectorAll('.chip').forEach(function(c){c.className='chip';});ofPkg=val;}
   else{document.getElementById('oflt-carrier').querySelectorAll('.chip').forEach(function(c){c.className='chip';});ofCarrier=val;}
   el.classList.add('on');applyOrdFlt();
+}
+function setOFltSel(axis,val){
+  if(axis==='pkg')ofPkg=val;
+  else ofCarrier=val;
+  applyOrdFlt();
 }
 function applyOrdFlt(){
   var search=((document.getElementById('oflt-search')||{}).value||'').toLowerCase().trim();
@@ -1059,7 +1078,7 @@ function renderOrdPage(){
   tb.innerHTML=html;
   renderPager('ord-pager',ordFilt.length,ordPage,function(p){ordPage=p;renderOrdPage();});
 }
-function clearOrdFlt(){ofPkg='ALL';ofCarrier='ALL';var e=document.getElementById('oflt-search');if(e)e.value='';buildOrdChips();applyOrdFlt();}
+function clearOrdFlt(){ofPkg='ALL';ofCarrier='ALL';var e=document.getElementById('oflt-search');if(e)e.value='';var ep=document.getElementById('oflt-pkg');if(ep)ep.value='ALL';var ec=document.getElementById('oflt-carrier');if(ec)ec.value='ALL';applyOrdFlt();}
 
 // ── INVOICE CHARGES TABLE ─────────────────────────────────────────────────────
 function setInvSort(f){if(invSort===f)invDir*=-1;else{invSort=f;invDir=-1;}renderInvoice();}
@@ -1269,7 +1288,7 @@ async function cycleStatus(id,cur){
 }
 function clearClaim(){['cr-o','cr-c','cr-a','cr-cn','cr-em','cr-p','cr-n','cr-lid'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});document.getElementById('cr-st').value='pending';}
 
-function goTab(n){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');if(n==='credits'){if(!invData.length){loadInvoice().then(function(){detectCredits();renderCredits();});}else{setTimeout(function(){detectCredits();renderCredits();},100);}}}
+function goTab(n){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');if(n==='credits'){if(!invData.length){loadInvoice().then(function(){detectCredits();renderCredits();});}else{setTimeout(function(){detectCredits();renderCredits();},100);}}if(n==='search'){initSearchDropdowns();}}
 function setText(id,val){var el=document.getElementById(id);if(el)el.innerHTML=String(val);}
 function gv(id){return document.getElementById(id)?document.getElementById(id).value:'';}
 function fmt(n){return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -1355,21 +1374,101 @@ function highlight(text,q){
   return String(text).replace(re,'<span class="hl">$1</span>');
 }
 
+// ── SEARCH TAB INIT ───────────────────────────────────────────────────────────
+function initSearchDropdowns(){
+  var ctSel=document.getElementById('srch-ct');
+  var dtSel=document.getElementById('srch-dt');
+  if(!ctSel||!dtSel)return;
+  // CT options from taxonomy
+  var ctHtml='<option value="">All Charge Types</option>';
+  CT_OPTIONS.filter(function(o){return o!=='—';}).forEach(function(o){ctHtml+='<option value="'+o+'">'+o+'</option>';});
+  ctSel.innerHTML=ctHtml;
+  // DT options from taxonomy
+  var dtHtml='<option value="">All Discrepancy Types</option>';
+  DT_OPTIONS.filter(function(o){return o!=='—';}).forEach(function(o){dtHtml+='<option value="'+o+'">'+o+'</option>';});
+  dtSel.innerHTML=dtHtml;
+}
+
 // ── SEARCH ────────────────────────────────────────────────────────────────────
 async function runSearch(){
   var q=(document.getElementById('srch-q').value||'').trim().toLowerCase();
-  if(!q){toast('Enter a search term','warn');return;}
+  var ctFilter=(document.getElementById('srch-ct')||{}).value||'';
+  var dtFilter=(document.getElementById('srch-dt')||{}).value||'';
+  if(!q&&!ctFilter&&!dtFilter){toast('Enter a search term or select a CT/DT filter','warn');return;}
   var res=document.getElementById('srchResults');
   res.innerHTML='<div style="padding:40px;text-align:center;color:var(--text3)">Searching...</div>';
   var results=[];
-  shipData.forEach(function(c){if(((c.order_number||'')+(c.tracking_number||'')+(c.ship_to_city||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Shipping',srcBadge:'bl',order:c.order_number,detail:(c.carrier||'')+' -> '+(c.ship_to_city||'')+(c.ship_to_country?', '+c.ship_to_country:''),amount:c.charge_amount,date:c.ship_date});});
-  ordData.forEach(function(c){if(((c.order_number||'')+(c.recipient_city||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Order',srcBadge:'bc',order:c.order_number,detail:(c.package_type||'')+' - '+(c.carrier||'')+' -> '+(c.recipient_city||''),amount:(parseFloat(c.initial_pick_fee_amount||0)+parseFloat(c.additional_pick_fee_amount||0)),date:c.ship_datetime?c.ship_datetime.slice(0,10):''});});
-  invData.forEach(function(c){if(((c.description||'')+(c.charge_on_invoice||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Invoice',srcBadge:parseFloat(c.amount||0)<0?'bt':'ba',order:null,detail:(c.charge_on_invoice||'')+': '+(c.description||''),amount:c.amount,date:c.date_from});});
-  creditData.forEach(function(c){if(((c.order_number||'')+(c.notes||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0)results.push({src:'Credit',srcBadge:'bm',order:c.order_number,detail:(c.carrier||'')+' - '+c.claim_status,amount:c.amount,date:c.invoice_period});});
-  if(!results.length){res.innerHTML='<div class="empty"><div class="empty-i">&#9672;</div><div class="empty-t">No results for "'+q+'"</div></div>';return;}
-  var html='<div style="font-size:10px;color:var(--text3);margin-bottom:10px">'+results.length+' results for "<span style="color:var(--lime)">'+q+'</span>"</div>';
-  html+='<div class="tw"><table><thead><tr><th>Source</th><th>Order #</th><th>Detail</th><th>Amount</th><th>Date</th></tr></thead><tbody>';
-  results.slice(0,200).forEach(function(r){html+='<tr><td><span class="badge '+r.srcBadge+'">'+r.src+'</span></td><td style="font-family:var(--mono);color:var(--text)">'+(r.order||'--')+'</td><td style="font-size:10px;color:var(--text2)">'+(r.detail||'')+'</td><td style="font-family:var(--mono);color:var(--lime)">$'+fmt(Math.abs(parseFloat(r.amount||0)))+'</td><td style="color:var(--text3);font-size:10px">'+(r.date||'--')+'</td></tr>';});
+
+  // Helper: get tags for a row from in-memory stores
+  function getTags(store,rid){
+    return{ct:(window[store]&&window[store][rid]&&window[store][rid].ct)||'',dt:(window[store]&&window[store][rid]&&window[store][rid].dt)||''};
+  }
+  // Helper: check tag filter match
+  function tagMatch(tags){
+    if(ctFilter&&tags.ct!==ctFilter)return false;
+    if(dtFilter&&tags.dt!==dtFilter)return false;
+    return true;
+  }
+
+  // Shipping — match text then check tags
+  for(var i=0;i<shipData.length;i++){
+    var c=shipData[i];
+    var textMatch=!q||((c.order_number||'')+(c.tracking_number||'')+(c.ship_to_city||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0;
+    if(!textMatch)continue;
+    var rid='sr'+i; // row IDs are positional in current loaded set
+    _initShipTags(rid,c);
+    var tags=getTags('_shipTags',rid);
+    if(!tagMatch(tags))continue;
+    results.push({src:'Shipping',srcBadge:'bl',order:c.order_number,detail:(c.carrier||'')+' → '+(c.ship_to_city||'')+(c.ship_to_country?', '+c.ship_to_country:''),amount:c.charge_amount,date:c.ship_date,ct:tags.ct,dt:tags.dt});
+  }
+  // Order Charges
+  for(var i=0;i<ordData.length;i++){
+    var c=ordData[i];
+    var textMatch=!q||((c.order_number||'')+(c.recipient_city||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0;
+    if(!textMatch)continue;
+    var rid='or'+i;
+    _initOrdTags(rid,c);
+    var tags=getTags('_ordTags',rid);
+    if(!tagMatch(tags))continue;
+    results.push({src:'Order',srcBadge:'bc',order:c.order_number,detail:(c.package_type||'')+' - '+(c.carrier||'')+' → '+(c.recipient_city||''),amount:(parseFloat(c.initial_pick_fee_amount||0)+parseFloat(c.additional_pick_fee_amount||0)),date:c.ship_datetime?c.ship_datetime.slice(0,10):'',ct:tags.ct,dt:tags.dt});
+  }
+  // Invoice Charges (no tag filter — inv tags keyed differently; show all text matches)
+  for(var i=0;i<invData.length;i++){
+    var c=invData[i];
+    var textMatch=!q||((c.description||'')+(c.charge_on_invoice||'')).toLowerCase().indexOf(q)>=0;
+    if(!textMatch)continue;
+    var rid='ir'+i;
+    _initInvTags(rid,c);
+    var tags=getTags('_invTags',rid);
+    if(!tagMatch(tags))continue;
+    results.push({src:'Invoice',srcBadge:parseFloat(c.amount||0)<0?'bt':'ba',order:null,detail:(c.charge_on_invoice||'')+': '+(c.description||''),amount:c.amount,date:c.date_from,ct:tags.ct,dt:tags.dt});
+  }
+  // Credits (no CT/DT tags — always include if text matches and no CT/DT filter set)
+  if(!ctFilter&&!dtFilter){
+    creditData.forEach(function(c){
+      if(!q||((c.order_number||'')+(c.notes||'')+(c.carrier||'')).toLowerCase().indexOf(q)>=0)
+        results.push({src:'Credit',srcBadge:'bm',order:c.order_number,detail:(c.carrier||'')+' - '+c.claim_status,amount:c.amount,date:c.invoice_period,ct:'',dt:''});
+    });
+  }
+
+  if(!results.length){
+    var noMsg=ctFilter||dtFilter?'No results matching '+(ctFilter?'CT: '+ctFilter:'')+(ctFilter&&dtFilter?' + ':'')+(dtFilter?'DT: '+dtFilter:'')+(q?' for "'+q+'"':''):'No results for "'+q+'"';
+    res.innerHTML='<div class="empty"><div class="empty-i">&#9672;</div><div class="empty-t">'+noMsg+'</div></div>';return;
+  }
+  var filterDesc=(ctFilter?'CT='+ctFilter:'')+(ctFilter&&dtFilter?', ':'')+(dtFilter?'DT='+dtFilter:'');
+  var html='<div style="font-size:10px;color:var(--text3);margin-bottom:10px">'+results.length+' results'+(q?' for "<span style="color:var(--lime)">'+q+'</span>"':'')+(filterDesc?' · <span style="color:var(--cyan)">'+filterDesc+'</span>':'')+'</div>';
+  html+='<div class="tw"><table><thead><tr><th>Source</th><th>Order #</th><th>Detail</th><th>Amount</th><th>Date</th><th>CT</th><th>DT</th></tr></thead><tbody>';
+  results.slice(0,200).forEach(function(r){
+    html+='<tr>'
+      +'<td><span class="badge '+r.srcBadge+'">'+r.src+'</span></td>'
+      +'<td style="font-family:var(--mono);color:var(--text)">'+(r.order||'--')+'</td>'
+      +'<td style="font-size:10px;color:var(--text2)">'+(r.detail||'')+'</td>'
+      +'<td style="font-family:var(--mono);color:var(--lime)">$'+fmt(Math.abs(parseFloat(r.amount||0)))+'</td>'
+      +'<td style="color:var(--text3);font-size:10px">'+(r.date||'--')+'</td>'
+      +'<td style="font-size:10px">'+(r.ct?'<span class="badge bc" style="font-size:9px">'+r.ct+'</span>':'<span style="color:var(--text3)">—</span>')+'</td>'
+      +'<td style="font-size:10px">'+(r.dt?'<span class="badge ba" style="font-size:9px">'+r.dt+'</span>':'<span style="color:var(--text3)">—</span>')+'</td>'
+      +'</tr>';
+  });
   html+='</tbody></table></div>';
   res.innerHTML=html;
 }
