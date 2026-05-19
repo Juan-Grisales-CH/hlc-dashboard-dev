@@ -16,21 +16,24 @@
 .rpt-type-title{font-family:var(--head);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text);margin-bottom:5px}
 .rpt-type-card.selected .rpt-type-title{color:var(--cyan)}
 .rpt-type-desc{font-size:10px;color:var(--text3);line-height:1.6}
+/* Print area — hidden by default, shown for print */
+.rpt-hidden{display:none}
 @media print{
   body > *{display:none!important}
-  body > #rpt-print-area{display:block!important}
-  #rpt-print-area{color:#000!important;background:#fff!important;font-family:Arial,sans-serif!important;font-size:11px;padding:24px;position:static!important;width:100%!important}
-  #rpt-print-area h1{font-size:17px;font-weight:700;margin-bottom:4px;color:#000}
-  #rpt-print-area h2{font-size:13px;font-weight:700;margin:20px 0 8px;color:#222;border-bottom:1px solid #ccc;padding-bottom:4px}
+  body > #rpt-print-area{display:block!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+  #rpt-print-area{color:#000!important;background:#fff!important;font-family:Arial,sans-serif!important;font-size:11px;padding:24px;position:static!important;width:100%!important;--bg:#fff;--panel:#fff;--panel2:#fff;--text:#000;--text2:#333;--text3:#555;--border:#ccc;--border2:#ccc;--lime:#000;--cyan:#000;--magenta:#000;--amber:#000}
+  #rpt-print-area.rpt-hidden{display:block!important}
+  #rpt-print-area h1{font-size:17px;font-weight:700;margin-bottom:4px;color:#000!important}
+  #rpt-print-area h2{font-size:13px;font-weight:700;margin:20px 0 8px;color:#222!important;border-bottom:1px solid #ccc;padding-bottom:4px}
   #rpt-print-area table{width:100%;border-collapse:collapse;margin-bottom:20px;page-break-inside:avoid}
-  #rpt-print-area th{background:#eeeeee;padding:6px 10px;text-align:left;font-size:10px;font-weight:700;border:1px solid #ccc;letter-spacing:.04em;text-transform:uppercase}
-  #rpt-print-area td{padding:5px 10px;border:1px solid #e0e0e0;font-size:10px;line-height:1.4}
-  #rpt-print-area tr:nth-child(even) td{background:#fafafa}
-  #rpt-print-area .rpt-summary-box{background:#f7f7f7;border:1px solid #ddd;padding:14px;margin-bottom:20px;font-size:11px;line-height:1.8;white-space:pre-wrap}
-  #rpt-print-area .rpt-meta{color:#555;font-size:10px;margin-bottom:20px;line-height:1.6}
+  #rpt-print-area th{background:#eeeeee!important;padding:6px 10px;text-align:left;font-size:10px;font-weight:700;border:1px solid #ccc;letter-spacing:.04em;text-transform:uppercase;color:#000!important}
+  #rpt-print-area td{padding:5px 10px;border:1px solid #e0e0e0;font-size:10px;line-height:1.4;color:#000!important;background:#fff!important}
+  #rpt-print-area tr:nth-child(even) td{background:#f8f8f8!important}
+  #rpt-print-area .rpt-summary-box{background:#f7f7f7!important;border:1px solid #ddd;padding:14px;margin-bottom:20px;font-size:11px;line-height:1.8;white-space:pre-wrap;color:#000!important}
+  #rpt-print-area .rpt-meta{color:#555!important;font-size:10px;margin-bottom:20px;line-height:1.6}
   #rpt-print-area .rpt-section-hdr td{background:#333!important;color:#fff!important;font-weight:700;font-size:10px;letter-spacing:.06em}
-  #rpt-print-area .rpt-subtotal td{background:#e8e8e8!important;font-weight:700;border-top:2px solid #999}
-  #rpt-print-area .rpt-grand td{background:#d0d0d0!important;font-weight:700;border-top:3px solid #666}
+  #rpt-print-area .rpt-subtotal td{background:#e0e0e0!important;color:#000!important;font-weight:700;border-top:2px solid #999}
+  #rpt-print-area .rpt-grand td{background:#cccccc!important;color:#000!important;font-weight:700;border-top:3px solid #666}
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;min-height:100vh}
@@ -709,7 +712,7 @@ tr:hover td{background:var(--panel2)}
 </div>
 
 </div><!-- /main -->
-<div id="rpt-print-area" style="display:none"></div>
+<div id="rpt-print-area" class="rpt-hidden"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -2230,55 +2233,63 @@ function printRpt(){
   var period=activePeriod.q||('Custom: '+activePeriod.from+' \u2013 '+activePeriod.to);
   var userLabel={'juan':'Juan Grisales','kim':'Kim Chan','jacobo':'Jacobo Ospina','dpm':'DPM (TBD)'}[document.getElementById('usel').value]||'Craighill Ops';
   var ai=(document.getElementById('rpt-ai-narrative').textContent||'').trim();
-  // Build standalone HTML — no CSS inheritance from dark theme
+  // Build fully inline-styled HTML — zero CSS inheritance from dark theme
+  var tblStyle='width:100%;border-collapse:collapse;margin-bottom:24px;font-family:Arial,sans-serif;font-size:10px;page-break-inside:avoid';
+  var thStyle='background:#dddddd;color:#000000;padding:6px 10px;text-align:left;font-weight:700;border:1px solid #aaaaaa;text-transform:uppercase;letter-spacing:.04em;font-size:9px';
+  var tdStyle='color:#000000;background:#ffffff;padding:5px 10px;border:1px solid #dddddd;font-family:Arial,sans-serif';
+  var tdAlt='color:#000000;background:#f5f5f5;padding:5px 10px;border:1px solid #dddddd;font-family:Arial,sans-serif';
   var body='';
-  body+='<h1 style="font-family:Arial,sans-serif;font-size:18px;font-weight:700;color:#000;margin:0 0 6px">HLC Invoice Intelligence \u2014 '+rptCurrentTitle+'</h1>';
-  body+='<p style="font-family:Arial,sans-serif;font-size:10px;color:#555;margin:0 0 20px;line-height:1.7">';
-  body+='Period: '+period+' &nbsp;&middot;&nbsp; Generated: '+new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+' &nbsp;&middot;&nbsp; Prepared by: '+userLabel+' &nbsp;&middot;&nbsp; Craighill Operations</p>';
+  body+='<h1 style="font-family:Arial,sans-serif;font-size:18px;font-weight:700;color:#000000;margin:0 0 8px 0">HLC Invoice Intelligence \u2014 '+rptCurrentTitle+'</h1>';
+  body+='<p style="font-family:Arial,sans-serif;font-size:10px;color:#555555;margin:0 0 24px 0;line-height:1.7;border-bottom:1px solid #cccccc;padding-bottom:12px">';
+  body+='Period: <strong>'+period+'</strong> &nbsp;&middot;&nbsp; Generated: '+new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+' &nbsp;&middot;&nbsp; Prepared by: '+userLabel+' &nbsp;&middot;&nbsp; Craighill Operations</p>';
   if(ai&&ai.indexOf('unavailable')<0){
-    body+='<h2 style="font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#222;margin:0 0 8px;border-bottom:2px solid #333;padding-bottom:4px">AI Summary</h2>';
-    body+='<div style="font-family:Arial,sans-serif;font-size:11px;color:#000;line-height:1.8;background:#f7f7f7;border:1px solid #ddd;padding:14px;margin-bottom:20px;white-space:pre-wrap">'+ai+'</div>';
+    body+='<h2 style="font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#000000;margin:0 0 8px 0;padding-bottom:4px;border-bottom:2px solid #333333">AI Summary</h2>';
+    body+='<div style="font-family:Arial,sans-serif;font-size:11px;color:#000000;line-height:1.8;background:#f8f8f8;border:1px solid #dddddd;padding:14px;margin-bottom:24px;white-space:pre-wrap">'+ai+'</div>';
   }
   var sections=window._rptSections||[{key:'current',rows:rptData,hdrs:rptHeaders,title:rptCurrentTitle}];
-  var tblStyle='width:100%;border-collapse:collapse;margin-bottom:24px;font-family:Arial,sans-serif;font-size:10px;page-break-inside:avoid';
-  var thStyle='background:#e0e0e0;color:#000;padding:6px 10px;text-align:left;font-weight:700;border:1px solid #bbb;text-transform:uppercase;letter-spacing:.04em;font-size:9px';
-  var tdStyle='color:#000;background:#fff;padding:5px 10px;border:1px solid #ddd;';
-  var tdAlt='color:#000;background:#f5f5f5;padding:5px 10px;border:1px solid #ddd;';
   for(var s=0;s<sections.length;s++){
     var sec=sections[s];
     var cfg=RPT_TYPES[sec.key]||{title:sec.title||rptCurrentTitle};
-    body+='<h2 style="font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#222;margin:20px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px">'+cfg.title+'</h2>';
-    if(!sec.rows||!sec.rows.length){body+='<p style="font-family:Arial,sans-serif;font-size:10px;color:#888;margin-bottom:16px">No data for this period.</p>';continue;}
+    body+='<h2 style="font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#000000;margin:20px 0 8px 0;padding-bottom:4px;border-bottom:1px solid #cccccc">'+cfg.title+'</h2>';
+    if(!sec.rows||!sec.rows.length){body+='<p style="font-family:Arial,sans-serif;font-size:10px;color:#888888;margin-bottom:16px">No data for this period.</p>';continue;}
     body+='<table style="'+tblStyle+'"><thead><tr>';
     for(var i=0;i<sec.hdrs.length;i++)body+='<th style="'+thStyle+'">'+sec.hdrs[i]+'</th>';
     body+='</tr></thead><tbody>';
     for(var i=0;i<sec.rows.length;i++){
-      var r=sec.rows[i];
-      var first=(r[0]||'').toString();
-      var isSectionHdr=first.indexOf('\u2500\u2500')>=0;
-      var isSubtotal=first.indexOf('SUBTOTAL')>=0;
-      var isGrand=first.indexOf('GRAND TOTAL')>=0;
+      var r=sec.rows[i];var first=(r[0]||'').toString();
+      var isSHdr=first.indexOf('\u2500\u2500')>=0;
+      var isSub=first.indexOf('SUBTOTAL')>=0||first.indexOf('GRAND TOTAL')>=0;
       body+='<tr>';
       for(var j=0;j<r.length;j++){
-        var cellStyle=isSectionHdr?'color:#fff;background:#333;padding:5px 10px;border:1px solid #222;font-weight:700;font-size:9px;letter-spacing:.06em':
-          isSubtotal||isGrand?'color:#000;background:#ddd;padding:5px 10px;border:1px solid #bbb;font-weight:700;border-top:2px solid #999':
-          (i%2===0?tdStyle:tdAlt);
-        body+='<td style="'+cellStyle+'">'+(r[j]||'')+'</td>';
+        var cs=isSHdr?'color:#ffffff;background:#333333;padding:5px 10px;border:1px solid #222222;font-weight:700;font-size:9px;letter-spacing:.06em;font-family:Arial,sans-serif':
+                isSub?'color:#000000;background:#dddddd;padding:5px 10px;border:1px solid #aaaaaa;font-weight:700;border-top:2px solid #999999;font-family:Arial,sans-serif':
+                (i%2===0?tdStyle:tdAlt);
+        body+='<td style="'+cs+'">'+(r[j]||'')+'</td>';
       }
       body+='</tr>';
     }
     body+='</tbody></table>';
   }
-  // Open isolated window — completely clean DOM, no dark theme
-  var w=window.open('','_blank','width=900,height=700');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+rptCurrentTitle+'</title><style>@media print{@page{margin:15mm}body{margin:0;padding:20px}}body{margin:20px;background:#fff;color:#000}</style></head><body>'+body+'</body></html>');
+  // Fully isolated popup — no stylesheet inheritance, all inline styles
+  var fullHtml='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+rptCurrentTitle+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#ffffff;color:#000000;margin:24px;font-family:Arial,sans-serif}'
+    +'@media print{@page{margin:12mm}body{margin:0;padding:16px}}</style>'
+    +'</head><body>'+body+'</body></html>';
+  var w=window.open('','_blank','width=900,height=700,noopener=0');
+  if(!w){toast('Pop-up blocked — please allow pop-ups for this site and try again','err');return;}
+  w.document.open();
+  w.document.write(fullHtml);
   w.document.close();
-  w.focus();
-  // Wait for new window to fully load before printing
-  setTimeout(function(){
+  // Use onload to guarantee render before print — much more reliable than timeouts
+  w.onload=function(){
+    w.focus();
     w.print();
-    setTimeout(function(){w.close();},1000);
-  },300);
+    setTimeout(function(){w.close();},1500);
+  };
+  // Fallback: if onload already fired (cached), trigger print directly
+  if(w.document.readyState==='complete'){
+    w.focus();w.print();setTimeout(function(){w.close();},1500);
+  }
   toast('Print dialog opening...','ok');
 }
 
@@ -2289,11 +2300,12 @@ async function _generateRptAI(type,data){
   var title=document.getElementById('rpt-ai-title');
   card.style.display='block';narr.className='ai-narrative loading';narr.textContent='Generating report summary...';
   var period=activePeriod.q||('Custom: '+activePeriod.from+' – '+activePeriod.to);
-  // Calculate real totals for accurate AI context
+  var ctx='';
+  // Calculate real totals for accurate AI context — prevents model from misreading dollar amounts
   var totalShip=0;for(var i=0;i<shipData.length;i++)totalShip+=parseFloat(shipData[i].charge_amount||0);
   var totalOrders=shipData.length;
-  var scaleContext='IMPORTANT: All dollar amounts are in USD dollars (not thousands or millions). Total shipping spend for this period is $'+totalShip.toFixed(2)+' across '+totalOrders+' shipments. Average cost per shipment is $'+(totalOrders>0?(totalShip/totalOrders).toFixed(2):'0')+'. Do not multiply or reinterpret these figures.\n\n';
-  var ctx=scaleContext;
+  var scaleCtx='IMPORTANT: All dollar amounts are in USD dollars (not thousands or millions). Total shipping spend this period: $'+totalShip.toFixed(2)+' across '+totalOrders+' shipments. Avg per shipment: $'+(totalOrders>0?(totalShip/totalOrders).toFixed(2):'0')+'. Use exact figures — do not scale or approximate.\n\n';
+  ctx=scaleCtx;
   if(type==='quick'){
     var sections=data;
     ctx+='Generate a concise executive summary for a Craighill Ops invoice report covering '+period+'.\n\n';
