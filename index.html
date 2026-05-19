@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HLC · INVOICE INTELLIGENCE v4.3</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
 :root{--bg:#060608;--panel:#0d0d14;--panel2:#12121c;--panel3:#181826;--border:#1e1e2e;--border2:#2a2a3e;--border3:#363650;--lime:#b8ff3c;--lime2:#8fcc1e;--cyan:#00e5ff;--magenta:#ff2d9b;--amber:#ffaa00;--red:#ff2d55;--purple:#7c3aed;--teal:#00d4aa;--text:#e0e0f0;--text2:#8888aa;--text3:#44445a;--mono:'Share Tech Mono',monospace;--head:'Rajdhani',sans-serif;--gl:0 0 8px rgba(184,255,60,0.4);--gc:0 0 8px rgba(0,229,255,0.4);--gm:0 0 8px rgba(255,45,155,0.4);--ga:0 0 8px rgba(255,170,0,0.4)}
@@ -684,7 +685,7 @@ tr:hover td{background:var(--panel2)}
       <div class="tbl-ctrl">
         <span style="font-size:10px;color:var(--text3)"><span id="rpt-row-count" style="color:var(--lime)">0</span> rows · <span id="rpt-title-display" style="color:var(--cyan)"></span></span>
         <div style="display:flex;gap:6px">
-          <button class="vbtn vbtn-lime vbtn-sm" onclick="exportRptCSV()">↓ Download CSV</button>
+          <button class="vbtn vbtn-lime vbtn-sm" onclick="exportRptCSV()">↓ Download Excel</button>
           <button class="vbtn vbtn-gray vbtn-sm" onclick="printRpt()">⎙ Print / Save PDF</button>
         </div>
       </div>
@@ -2049,11 +2050,49 @@ function _dataVariance(){
 }
 
 function _dataZone(){
-  var zones={};
-  for(var i=0;i<shipData.length;i++){var r=shipData[i];var country=r.ship_to_country||'US';var channel=country==='US'?'D2C':'International';var state=r.ship_to_state||r.ship_to_country||'Unknown';var k=channel+'||'+state;if(!zones[k])zones[k]={channel:channel,state:state,zone:country==='US'?'Domestic':'International',count:0,total:0};zones[k].count++;zones[k].total+=parseFloat(r.charge_amount||0);}
-  var rows=[];for(var k in zones){var z=zones[k];rows.push([z.channel,z.state,z.zone,z.count,'$'+fmt(z.total),'$'+fmt(z.count>0?z.total/z.count:0)]);}
-  rows.sort(function(a,b){return parseFloat(b[4].replace(/[$,]/g,''))-parseFloat(a[4].replace(/[$,]/g,''));});
-  return rows.slice(0,150);
+  // Build domestic (US) and international separately
+  var dom={},intl={};
+  for(var i=0;i<shipData.length;i++){
+    var r=shipData[i];
+    var country=(r.ship_to_country||'US').toUpperCase();
+    var amt=parseFloat(r.charge_amount||0);
+    if(country==='US'){
+      var state=r.ship_to_state||'Unknown';
+      if(!dom[state])dom[state]={location:state,count:0,total:0};
+      dom[state].count++;dom[state].total+=amt;
+    } else {
+      if(!intl[country])intl[country]={location:country,count:0,total:0};
+      intl[country].count++;intl[country].total+=amt;
+    }
+  }
+  // Domestic rows sorted by total desc
+  var domRows=[];var domShip=0,domCount=0;
+  for(var k in dom){domRows.push(dom[k]);domShip+=dom[k].total;domCount+=dom[k].count;}
+  domRows.sort(function(a,b){return b.total-a.total;});
+  // International rows sorted by total desc
+  var intlRows=[];var intlShip=0,intlCount=0;
+  for(var k in intl){intlRows.push(intl[k]);intlShip+=intl[k].total;intlCount+=intl[k].count;}
+  intlRows.sort(function(a,b){return b.total-a.total;});
+  // Build combined output with section headers and subtotals
+  var rows=[];
+  rows.push(['── DOMESTIC (United States) ──','','','','','']);
+  rows.push(['State','','Shipments','Total Cost ($)','Avg Cost ($)','% of Domestic']);
+  for(var i=0;i<domRows.length;i++){
+    var d=domRows[i];
+    rows.push([d.location,'',d.count,'$'+fmt(d.total),'$'+fmt(d.count>0?d.total/d.count:0),(domShip>0?(d.total/domShip*100).toFixed(1)+'%':'0%')]);
+  }
+  rows.push(['DOMESTIC SUBTOTAL','',domCount,'$'+fmt(domShip),'$'+fmt(domCount>0?domShip/domCount:0),'100%']);
+  rows.push(['','','','','','']);
+  rows.push(['── INTERNATIONAL ──','','','','','']);
+  rows.push(['Country','','Shipments','Total Cost ($)','Avg Cost ($)','% of International']);
+  for(var i=0;i<intlRows.length;i++){
+    var d=intlRows[i];
+    rows.push([d.location,'',d.count,'$'+fmt(d.total),'$'+fmt(d.count>0?d.total/d.count:0),(intlShip>0?(d.total/intlShip*100).toFixed(1)+'%':'0%')]);
+  }
+  rows.push(['INTERNATIONAL SUBTOTAL','',intlCount,'$'+fmt(intlShip),'$'+fmt(intlCount>0?intlShip/intlCount:0),'100%']);
+  rows.push(['','','','','','']);
+  rows.push(['GRAND TOTAL','',domCount+intlCount,'$'+fmt(domShip+intlShip),'$'+fmt((domCount+intlCount)>0?(domShip+intlShip)/(domCount+intlCount):0),'']);
+  return rows;
 }
 
 function _dataDiscrepancy(){
@@ -2116,24 +2155,51 @@ function _renderRptTable(title,headers,rows){
 
 function exportRptCSV(){
   if(!rptData.length&&(!window._rptSections||!window._rptSections.length)){toast('Generate a report first','warn');return;}
-  var csv='';
+  if(typeof XLSX==='undefined'){toast('SheetJS not loaded — try refreshing','err');return;}
+  var wb=XLSX.utils.book_new();
+  var period=activePeriod.q||('Custom '+activePeriod.from+' to '+activePeriod.to);
+  // Helper: strip $ and currency formatting for clean numeric cells
+  function cleanVal(v){
+    if(typeof v!=='string')return v;
+    // Section header rows — keep as-is
+    if(v.indexOf('──')>=0||v==='')return v;
+    var stripped=v.replace(/[$,]/g,'');
+    var n=parseFloat(stripped);
+    return isNaN(n)?v:n;
+  }
+  function makeSheet(hdrs,rows){
+    // Filter out section-header rows for column headers (use passed hdrs)
+    var sheetData=[hdrs.map(function(h){return h;})];
+    for(var i=0;i<rows.length;i++){
+      sheetData.push(rows[i].map(function(v){return cleanVal(v||'');},));
+    }
+    return XLSX.utils.aoa_to_sheet(sheetData);
+  }
   if(window._rptSections&&rptMode==='quick'){
+    // One sheet per report type
+    for(var s=0;s<window._rptSections.length;s++){
+      var sec=window._rptSections[s];
+      var cfg=RPT_TYPES[sec.key];
+      var ws=makeSheet(sec.hdrs,sec.rows);
+      // Sheet name max 31 chars, no special chars
+      var sheetName=cfg.title.replace(/[\/\\?\*\[\]:]/g,'').slice(0,28)+' '+cfg.rock.replace('Rock ','R').replace(/\s/g,'');
+      XLSX.utils.book_append_sheet(wb,ws,sheetName.slice(0,31));
+    }
+    // Summary sheet
+    var sumData=[['Report','Rock','Rows','Period'],[],[],[],];
     for(var s=0;s<window._rptSections.length;s++){
       var sec=window._rptSections[s];var cfg=RPT_TYPES[sec.key];
-      csv+=cfg.title+' · '+cfg.rock+'\n';
-      csv+=sec.hdrs.join(',')+'\n';
-      for(var i=0;i<sec.rows.length;i++){csv+=sec.rows[i].map(function(v){return'"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',')+'\n';}
-      csv+='\n';
+      sumData.push([cfg.title,cfg.rock,sec.rows.length,period]);
     }
+    var wsSummary=XLSX.utils.aoa_to_sheet([['HLC Invoice Intelligence — Quick Report'],['Period: '+period],['Generated: '+new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})],[],['Report','Rock','Rows']].concat(window._rptSections.map(function(sec){var cfg=RPT_TYPES[sec.key];return[cfg.title,cfg.rock,sec.rows.length];})));
+    XLSX.utils.book_append_sheet(wb,wsSummary,'Summary');
   } else {
-    csv=rptHeaders.join(',')+'\n';
-    for(var i=0;i<rptData.length;i++){csv+=rptData[i].map(function(v){return'"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',')+'\n';}
+    var ws=makeSheet(rptHeaders,rptData);
+    XLSX.utils.book_append_sheet(wb,ws,rptCurrentTitle.slice(0,31));
   }
-  var blob=new Blob([csv],{type:'text/csv'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  var period=(activePeriod.q||'custom').replace(/\s/g,'-');
-  a.download='HLC-Report-'+rptCurrentTitle.replace(/[^a-zA-Z0-9]/g,'-').replace(/-+/g,'-')+'-'+period+'.csv';
-  a.click();toast('CSV downloaded','ok');
+  var filename='HLC-Report-'+rptCurrentTitle.replace(/[^a-zA-Z0-9]/g,'-').replace(/-+/g,'-')+'-'+period.replace(/\s/g,'-')+'.xlsx';
+  XLSX.writeFile(wb,filename);
+  toast('Excel file downloaded — each report on its own sheet','ok');
 }
 
 function printRpt(){
@@ -2141,24 +2207,38 @@ function printRpt(){
   var pa=document.getElementById('rpt-print-area');
   var period=activePeriod.q||('Custom: '+activePeriod.from+' – '+activePeriod.to);
   var userLabel={'juan':'Juan Grisales','kim':'Kim Chan','jacobo':'Jacobo Ospina','dpm':'DPM (TBD)'}[document.getElementById('usel').value]||'Craighill Ops';
-  var ai=document.getElementById('rpt-ai-narrative').textContent||'';
-  var html='<h1>HLC Invoice Intelligence · '+rptCurrentTitle+'</h1>';
-  html+='<div class="rpt-meta">Period: '+period+' · Generated: '+new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+' · By: '+userLabel+' · Craighill Ops</div>';
-  if(ai){html+='<h2>AI Summary</h2><div class="rpt-summary-box">'+ai+'</div>';}
+  var ai=(document.getElementById('rpt-ai-narrative').textContent||'').trim();
+  var html='<h1>HLC Invoice Intelligence &mdash; '+rptCurrentTitle+'</h1>';
+  html+='<div class="rpt-meta">Period: '+period+' &nbsp;&middot;&nbsp; Generated: '+new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+' &nbsp;&middot;&nbsp; By: '+userLabel+' &nbsp;&middot;&nbsp; Craighill Ops</div>';
+  if(ai&&ai!=='AI summary unavailable for this report.'){html+='<h2>AI Summary</h2><div class="rpt-summary-box">'+ai.replace(/\n/g,'<br>')+'</div>';}
   var sections=window._rptSections||[{key:'current',rows:rptData,hdrs:rptHeaders,title:rptCurrentTitle}];
   for(var s=0;s<sections.length;s++){
     var sec=sections[s];var cfg=RPT_TYPES[sec.key]||{title:sec.title||rptCurrentTitle,rock:''};
-    html+='<h2>'+cfg.title+(cfg.rock?' <span style="font-size:10px;color:#888">'+cfg.rock+'</span>':'')+'</h2>';
-    if(!sec.rows||!sec.rows.length){html+='<p style="color:#888;font-size:10px">No data for this period.</p>';continue;}
+    html+='<h2>'+cfg.title+(cfg.rock?' &nbsp;<span style="font-size:10px;color:#888;font-weight:400">'+cfg.rock+'</span>':'')+'</h2>';
+    if(!sec.rows||!sec.rows.length){html+='<p style="color:#888;font-size:10px;margin-bottom:12px">No data for this period.</p>';continue;}
     html+='<table><thead><tr>';
+    // Use passed headers but also handle section-header rows in zone data gracefully
     for(var i=0;i<sec.hdrs.length;i++)html+='<th>'+sec.hdrs[i]+'</th>';
     html+='</tr></thead><tbody>';
-    for(var i=0;i<sec.rows.length;i++){html+='<tr>';for(var j=0;j<sec.rows[i].length;j++)html+='<td>'+(sec.rows[i][j]||'—')+'</td>';html+='</tr>';}
+    for(var i=0;i<sec.rows.length;i++){
+      var isHeader=sec.rows[i][0]&&sec.rows[i][0].toString().indexOf('──')>=0;
+      var isSubtotal=sec.rows[i][0]&&(sec.rows[i][0].toString().indexOf('SUBTOTAL')>=0||sec.rows[i][0].toString().indexOf('GRAND TOTAL')>=0);
+      var rowStyle=isHeader?'background:#e8e8e8;font-weight:700;':isSubtotal?'background:#f0f0f0;font-weight:600;border-top:2px solid #ccc;':'';
+      html+='<tr style="'+rowStyle+'">';
+      for(var j=0;j<sec.rows[i].length;j++)html+='<td>'+(sec.rows[i][j]||'')+'</td>';
+      html+='</tr>';
+    }
     html+='</tbody></table>';
   }
-  pa.innerHTML=html;pa.style.display='block';
-  window.print();
-  setTimeout(function(){pa.style.display='none';},1000);
+  // Set content then wait two animation frames before printing to guarantee paint
+  pa.innerHTML=html;
+  pa.style.display='block';
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      window.print();
+      setTimeout(function(){pa.style.display='none';},1500);
+    });
+  });
 }
 
 async function _generateRptAI(type,data){
