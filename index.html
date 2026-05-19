@@ -16,21 +16,24 @@
 .rpt-type-title{font-family:var(--head);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text);margin-bottom:5px}
 .rpt-type-card.selected .rpt-type-title{color:var(--cyan)}
 .rpt-type-desc{font-size:10px;color:var(--text3);line-height:1.6}
+/* Print area — hidden by default, shown for print */
+.rpt-hidden{display:none}
 @media print{
   body > *{display:none!important}
-  body > #rpt-print-area{display:block!important}
-  #rpt-print-area{color:#000!important;background:#fff!important;font-family:Arial,sans-serif!important;font-size:11px;padding:24px;position:static!important;width:100%!important}
-  #rpt-print-area h1{font-size:17px;font-weight:700;margin-bottom:4px;color:#000}
-  #rpt-print-area h2{font-size:13px;font-weight:700;margin:20px 0 8px;color:#222;border-bottom:1px solid #ccc;padding-bottom:4px}
+  body > #rpt-print-area{display:block!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact}
+  #rpt-print-area{color:#000!important;background:#fff!important;font-family:Arial,sans-serif!important;font-size:11px;padding:24px;position:static!important;width:100%!important;--bg:#fff;--panel:#fff;--panel2:#fff;--text:#000;--text2:#333;--text3:#555;--border:#ccc;--border2:#ccc;--lime:#000;--cyan:#000;--magenta:#000;--amber:#000}
+  #rpt-print-area.rpt-hidden{display:block!important}
+  #rpt-print-area h1{font-size:17px;font-weight:700;margin-bottom:4px;color:#000!important}
+  #rpt-print-area h2{font-size:13px;font-weight:700;margin:20px 0 8px;color:#222!important;border-bottom:1px solid #ccc;padding-bottom:4px}
   #rpt-print-area table{width:100%;border-collapse:collapse;margin-bottom:20px;page-break-inside:avoid}
-  #rpt-print-area th{background:#eeeeee;padding:6px 10px;text-align:left;font-size:10px;font-weight:700;border:1px solid #ccc;letter-spacing:.04em;text-transform:uppercase}
-  #rpt-print-area td{padding:5px 10px;border:1px solid #e0e0e0;font-size:10px;line-height:1.4}
-  #rpt-print-area tr:nth-child(even) td{background:#fafafa}
-  #rpt-print-area .rpt-summary-box{background:#f7f7f7;border:1px solid #ddd;padding:14px;margin-bottom:20px;font-size:11px;line-height:1.8;white-space:pre-wrap}
-  #rpt-print-area .rpt-meta{color:#555;font-size:10px;margin-bottom:20px;line-height:1.6}
+  #rpt-print-area th{background:#eeeeee!important;padding:6px 10px;text-align:left;font-size:10px;font-weight:700;border:1px solid #ccc;letter-spacing:.04em;text-transform:uppercase;color:#000!important}
+  #rpt-print-area td{padding:5px 10px;border:1px solid #e0e0e0;font-size:10px;line-height:1.4;color:#000!important;background:#fff!important}
+  #rpt-print-area tr:nth-child(even) td{background:#f8f8f8!important}
+  #rpt-print-area .rpt-summary-box{background:#f7f7f7!important;border:1px solid #ddd;padding:14px;margin-bottom:20px;font-size:11px;line-height:1.8;white-space:pre-wrap;color:#000!important}
+  #rpt-print-area .rpt-meta{color:#555!important;font-size:10px;margin-bottom:20px;line-height:1.6}
   #rpt-print-area .rpt-section-hdr td{background:#333!important;color:#fff!important;font-weight:700;font-size:10px;letter-spacing:.06em}
-  #rpt-print-area .rpt-subtotal td{background:#e8e8e8!important;font-weight:700;border-top:2px solid #999}
-  #rpt-print-area .rpt-grand td{background:#d0d0d0!important;font-weight:700;border-top:3px solid #666}
+  #rpt-print-area .rpt-subtotal td{background:#e0e0e0!important;color:#000!important;font-weight:700;border-top:2px solid #999}
+  #rpt-print-area .rpt-grand td{background:#cccccc!important;color:#000!important;font-weight:700;border-top:3px solid #666}
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;min-height:100vh}
@@ -709,7 +712,7 @@ tr:hover td{background:var(--panel2)}
 </div>
 
 </div><!-- /main -->
-<div id="rpt-print-area" style="display:none"></div>
+<div id="rpt-print-area" class="rpt-hidden"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -2264,12 +2267,16 @@ function printRpt(){
     html+='</tbody></table>';
   }
   pa.innerHTML=html;
-  pa.style.display='block';
-  // Double rAF guarantees browser has painted before print dialog opens
+  pa.classList.remove('rpt-hidden');
+  // Three rAF cycles + 150ms gives Chrome time to fully reflow and paint before print dialog
   requestAnimationFrame(function(){
     requestAnimationFrame(function(){
-      window.print();
-      setTimeout(function(){pa.style.display='none';},1500);
+      requestAnimationFrame(function(){
+        setTimeout(function(){
+          window.print();
+          setTimeout(function(){pa.classList.add('rpt-hidden');pa.innerHTML='';},1500);
+        },150);
+      });
     });
   });
 }
@@ -2294,7 +2301,7 @@ async function _generateRptAI(type,data){
     title.textContent='// '+cfg.title+' · AI Summary';
   }
   try{
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':aKey,'anthropic-version':'2023-06-01','anthropic-dangerous-allow-browser':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:400,messages:[{role:'user',content:ctx}]})});
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':aKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:400,messages:[{role:'user',content:ctx}]})});
     var d=await resp.json();
     var text=(d.content&&d.content[0]&&d.content[0].text)||'Summary unavailable.';
     narr.className='ai-narrative';narr.textContent=text;
