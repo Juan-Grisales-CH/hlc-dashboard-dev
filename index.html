@@ -8,6 +8,24 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
 :root{--bg:#060608;--panel:#0d0d14;--panel2:#12121c;--panel3:#181826;--border:#1e1e2e;--border2:#2a2a3e;--border3:#363650;--lime:#b8ff3c;--lime2:#8fcc1e;--cyan:#00e5ff;--magenta:#ff2d9b;--amber:#ffaa00;--red:#ff2d55;--purple:#7c3aed;--teal:#00d4aa;--text:#e0e0f0;--text2:#8888aa;--text3:#44445a;--mono:'Share Tech Mono',monospace;--head:'Rajdhani',sans-serif;--gl:0 0 8px rgba(184,255,60,0.4);--gc:0 0 8px rgba(0,229,255,0.4);--gm:0 0 8px rgba(255,45,155,0.4);--ga:0 0 8px rgba(255,170,0,0.4)}
+/* Reports tab */
+.rpt-type-card{background:var(--panel);border:1px solid var(--border2);padding:14px 16px;cursor:pointer;transition:all .15s}
+.rpt-type-card:hover{border-color:var(--border3);background:var(--panel2)}
+.rpt-type-card.selected{border-color:var(--cyan);background:rgba(0,229,255,.05)}
+.rpt-type-title{font-family:var(--head);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text);margin-bottom:5px}
+.rpt-type-card.selected .rpt-type-title{color:var(--cyan)}
+.rpt-type-desc{font-size:10px;color:var(--text3);line-height:1.6}
+@media print{
+  body > *:not(#rpt-print-area){display:none!important}
+  #rpt-print-area{display:block!important;color:#000;background:#fff;font-family:Arial,sans-serif;font-size:11px;padding:20px}
+  #rpt-print-area h1{font-size:16px;margin-bottom:4px}
+  #rpt-print-area h2{font-size:13px;margin:16px 0 6px;color:#333}
+  #rpt-print-area table{width:100%;border-collapse:collapse;margin-bottom:16px}
+  #rpt-print-area th{background:#f0f0f0;padding:5px 8px;text-align:left;font-size:10px;border:1px solid #ccc}
+  #rpt-print-area td{padding:4px 8px;border:1px solid #e0e0e0;font-size:10px}
+  #rpt-print-area .rpt-summary-box{background:#f9f9f9;border:1px solid #ddd;padding:12px;margin-bottom:16px;white-space:pre-wrap;font-size:11px;line-height:1.7}
+  #rpt-print-area .rpt-meta{color:#666;font-size:10px;margin-bottom:16px}
+}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;min-height:100vh}
 body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);pointer-events:none;z-index:9999}
@@ -222,6 +240,7 @@ tr:hover td{background:var(--panel2)}
   <div class="tab" onclick="goTab('credits')" id="tab-credits">Credits <span class="tb" id="cnt-cr">—</span></div>
   <div class="tab" onclick="goTab('compare')" id="tab-compare">Compare</div>
   <div class="tab" onclick="goTab('search')" id="tab-search">Search</div>
+  <div class="tab" onclick="goTab('reports')" id="tab-reports">Reports <span class="tb" style="color:var(--lime)">NEW</span></div>
 </div>
 
 <div class="main">
@@ -587,6 +606,100 @@ tr:hover td{background:var(--panel2)}
   <div id="srchResults">
     <div class="empty" id="srchE"><div class="empty-i">◈</div><div class="empty-t">Enter a search query above</div><div class="empty-s">Try a CRA order number, tracking number, or keyword</div></div>
   </div>
+</div>
+
+<!-- ══ REPORTS TAB ══ -->
+<div class="tc" id="tc-reports">
+
+  <div style="background:var(--panel2);border:1px solid var(--border2);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-family:var(--head);font-size:14px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--lime);margin-bottom:3px">// Report Builder</div>
+      <div style="font-size:10px;color:var(--text3)">Generate focused exports for ops review, cost analysis, and credit recovery · Q2 2026 Rock 2 + 3</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--text3)">
+      <span>Period:</span>
+      <span id="rpt-period-display" style="color:var(--cyan);font-family:var(--mono)">Q2 2026</span>
+      <span style="color:var(--text3)">· uses active period from period bar</span>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+    <div id="rpt-mode-quick" onclick="setRptMode('quick')" style="background:var(--panel);border:1px solid var(--lime);padding:16px 20px;cursor:pointer;transition:all .15s">
+      <div style="font-family:var(--head);font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--lime);margin-bottom:6px">⚡ Quick Report</div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.6">All cost categories in one export. Shipping, pick & pack, overhead, credits, and discrepancies — one consolidated view of the full period.</div>
+    </div>
+    <div id="rpt-mode-granular" onclick="setRptMode('granular')" style="background:var(--panel);border:1px solid var(--border2);padding:16px 20px;cursor:pointer;transition:all .15s">
+      <div style="font-family:var(--head);font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text2);margin-bottom:6px">◈ Granular Report</div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.6">Pick a specific report type. Focused single-topic export — carrier breakdown, rate variance, zone analysis, discrepancy log, or credit recovery.</div>
+    </div>
+  </div>
+
+  <div id="rpt-type-selector" style="display:none;margin-bottom:20px">
+    <div style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:10px">// Select Report Type</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+      <div class="rpt-type-card" id="rptcard-monthly" onclick="selectRptType('monthly')">
+        <div class="rpt-type-title">Monthly Cost Summary</div>
+        <div class="rpt-type-desc">Total spend by carrier, service level, and order type. Month-over-month trend. Rock 2.2</div>
+      </div>
+      <div class="rpt-type-card" id="rptcard-variance" onclick="selectRptType('variance')">
+        <div class="rpt-type-title">Rate Card Variance</div>
+        <div class="rpt-type-desc">Actual charges vs. contracted rate card. Flags deltas above threshold. Rock 2.3</div>
+      </div>
+      <div class="rpt-type-card" id="rptcard-zone" onclick="selectRptType('zone')">
+        <div class="rpt-type-title">Cost by Zone / Channel</div>
+        <div class="rpt-type-desc">Outbound cost by zone, weight tier, and channel (B2B / D2C / Faire / Intl). Rock 2.4</div>
+      </div>
+      <div class="rpt-type-card" id="rptcard-discrepancy" onclick="selectRptType('discrepancy')">
+        <div class="rpt-type-title">Discrepancy Summary</div>
+        <div class="rpt-type-desc">All flagged DT codes, dollar exposure, and claim status. Tied to billing SOP. Rock 3.4</div>
+      </div>
+      <div class="rpt-type-card" id="rptcard-credits" onclick="selectRptType('credits')">
+        <div class="rpt-type-title">Credits & Recovery</div>
+        <div class="rpt-type-desc">Approved credits, pending claims, write-offs, and recovery rate. Rock 3.3</div>
+      </div>
+      <div class="rpt-type-card" id="rptcard-trend" onclick="selectRptType('trend')">
+        <div class="rpt-type-title">Monthly Trend</div>
+        <div class="rpt-type-desc">Period-over-period comparison across all cost categories. Rock 2.6</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+    <button class="ai-gen-btn" id="rpt-gen-btn" onclick="generateReport()" style="font-size:11px;padding:10px 28px" disabled>✦ Generate Report</button>
+    <span id="rpt-gen-label" style="font-size:10px;color:var(--text3)">Select a report mode above to continue</span>
+  </div>
+
+  <div id="rpt-ai-card" style="display:none;background:var(--panel);border:1px solid var(--border2);margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel2)">
+      <div class="pt2" id="rpt-ai-title">Report Summary</div>
+      <span class="ai-model-badge">Claude · Sonnet 4</span>
+    </div>
+    <div style="padding:16px">
+      <div id="rpt-ai-narrative" class="ai-narrative"></div>
+    </div>
+  </div>
+
+  <div id="rpt-preview" style="display:none">
+    <div class="tw">
+      <div class="tbl-ctrl">
+        <span style="font-size:10px;color:var(--text3)"><span id="rpt-row-count" style="color:var(--lime)">0</span> rows · <span id="rpt-title-display" style="color:var(--cyan)"></span></span>
+        <div style="display:flex;gap:6px">
+          <button class="vbtn vbtn-lime vbtn-sm" onclick="exportRptCSV()">↓ Download CSV</button>
+          <button class="vbtn vbtn-gray vbtn-sm" onclick="printRpt()">⎙ Print / Save PDF</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table id="rpt-table" style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead id="rpt-thead"></thead>
+          <tbody id="rpt-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="rpt-empty" style="display:none"><div class="empty-i">◈</div><div class="empty-t">No data for this period</div><div class="empty-s">Try selecting All Time or a different period</div></div>
+    </div>
+  </div>
+
+  <div id="rpt-print-area" style="display:none"></div>
+
 </div>
 
 </div><!-- /main -->
@@ -1288,7 +1401,7 @@ async function cycleStatus(id,cur){
 }
 function clearClaim(){['cr-o','cr-c','cr-a','cr-cn','cr-em','cr-p','cr-n','cr-lid'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});document.getElementById('cr-st').value='pending';}
 
-function goTab(n){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');if(n==='credits'){if(!invData.length){loadInvoice().then(function(){detectCredits();renderCredits();});}else{setTimeout(function(){detectCredits();renderCredits();},100);}}if(n==='search'){initSearchDropdowns();}}
+function goTab(n){document.querySelectorAll('.tc').forEach(function(t){t.classList.remove('active');});document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});document.getElementById('tc-'+n).classList.add('active');document.getElementById('tab-'+n).classList.add('active');if(n==='credits'){if(!invData.length){loadInvoice().then(function(){detectCredits();renderCredits();});}else{setTimeout(function(){detectCredits();renderCredits();},100);}}if(n==='search'){initSearchDropdowns();}if(n==='reports'){initReportsTab();}}
 function setText(id,val){var el=document.getElementById(id);if(el)el.innerHTML=String(val);}
 function gv(id){return document.getElementById(id)?document.getElementById(id).value:'';}
 function fmt(n){return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -1825,6 +1938,259 @@ function validateGroundTruth(){
   return {shipping:shipTotal,pickpack:pickTotal,overhead:overhead,credits:credits,orders:ordCount};
 }
 window.validateGroundTruth=validateGroundTruth;
+
+// ── REPORTS TAB ──────────────────────────────────────────────────────────────
+var rptMode=null,rptType=null,rptData=[],rptHeaders=[],rptCurrentTitle='';
+
+var RPT_TYPES={
+  monthly:{title:'Monthly Cost Summary',rock:'Rock 2.2',headers:['Carrier','Service Level','Shipments','Total Cost ($)','Avg Cost ($)','% of Total'],desc:'Total spend by carrier and service level for the selected period.'},
+  variance:{title:'Rate Card Variance',rock:'Rock 2.3',headers:['Order #','Carrier','Service Level','Billed ($)','Expected ($)','Delta ($)','Status'],desc:'Charges where actual billed amount differs from expected rate card.'},
+  zone:{title:'Cost by Zone / Channel',rock:'Rock 2.4',headers:['Channel','State/Country','Zone','Shipments','Total Cost ($)','Avg Cost ($)'],desc:'Outbound cost broken down by destination zone and order channel.'},
+  discrepancy:{title:'Discrepancy Summary',rock:'Rock 3.4',headers:['Order #','DT Code','CT Code','Carrier','Charge ($)','Invoice Period','Claim Status'],desc:'All charges flagged with a Discrepancy Type — dollar exposure and claim status.'},
+  credits:{title:'Credits & Recovery',rock:'Rock 3.3',headers:['Order #','Carrier','Claim Type','Amount ($)','Invoice Period','Status','Notes'],desc:'Credit claims log — approved, pending, and stalled recoveries.'},
+  trend:{title:'Monthly Trend',rock:'Rock 2.6',headers:['Period','Shipments','Shipping Cost ($)','Pick & Pack ($)','Overhead ($)','Credits ($)','Total ($)'],desc:'Period-over-period cost breakdown across all categories.'}
+};
+
+function setRptMode(m){
+  rptMode=m;rptType=null;
+  var q=document.getElementById('rpt-mode-quick');
+  var g=document.getElementById('rpt-mode-granular');
+  var ts=document.getElementById('rpt-type-selector');
+  var btn=document.getElementById('rpt-gen-btn');
+  var lbl=document.getElementById('rpt-gen-label');
+  if(m==='quick'){
+    q.style.borderColor='var(--lime)';q.style.background='rgba(184,255,60,.05)';
+    g.style.borderColor='var(--border2)';g.style.background='var(--panel)';
+    ts.style.display='none';
+    btn.disabled=false;
+    lbl.textContent='Ready — will generate all 6 reports in one consolidated export';
+    lbl.style.color='var(--lime)';
+  } else {
+    g.style.borderColor='var(--cyan)';g.style.background='rgba(0,229,255,.05)';
+    q.style.borderColor='var(--border2)';q.style.background='var(--panel)';
+    ts.style.display='block';
+    btn.disabled=true;
+    lbl.textContent='Select a report type above';
+    lbl.style.color='var(--text3)';
+  }
+  document.getElementById('rpt-ai-card').style.display='none';
+  document.getElementById('rpt-preview').style.display='none';
+}
+
+function selectRptType(t){
+  rptType=t;
+  document.querySelectorAll('.rpt-type-card').forEach(function(c){c.classList.remove('selected');});
+  document.getElementById('rptcard-'+t).classList.add('selected');
+  var btn=document.getElementById('rpt-gen-btn');
+  var lbl=document.getElementById('rpt-gen-label');
+  btn.disabled=false;
+  lbl.textContent='Ready — '+RPT_TYPES[t].title+' · '+RPT_TYPES[t].rock;
+  lbl.style.color='var(--cyan)';
+}
+
+function generateReport(){
+  if(!rptMode){toast('Select a report mode first','warn');return;}
+  if(rptMode==='granular'&&!rptType){toast('Select a report type first','warn');return;}
+  var btn=document.getElementById('rpt-gen-btn');
+  btn.disabled=true;btn.textContent='⟳ Generating...';
+  var pd=activePeriod.q||('Custom: '+activePeriod.from+' – '+activePeriod.to);
+  document.getElementById('rpt-period-display').textContent=pd;
+  setTimeout(function(){
+    try{
+      if(rptMode==='quick'){_buildQuickReport();}
+      else{_buildGranularReport(rptType);}
+    }catch(e){console.error('Report error:',e);toast('Error building report: '+e.message,'err');}
+    btn.disabled=false;btn.textContent='✦ Generate Report';
+  },50);
+}
+
+function _buildQuickReport(){
+  var sections=[];
+  sections.push({key:'monthly',rows:_dataMonthly(),hdrs:RPT_TYPES.monthly.headers});
+  sections.push({key:'discrepancy',rows:_dataDiscrepancy(),hdrs:RPT_TYPES.discrepancy.headers});
+  sections.push({key:'credits',rows:_dataCredits(),hdrs:RPT_TYPES.credits.headers});
+  sections.push({key:'trend',rows:_dataTrend(),hdrs:RPT_TYPES.trend.headers});
+  sections.push({key:'zone',rows:_dataZone(),hdrs:RPT_TYPES.zone.headers});
+  rptData=sections[0].rows;rptHeaders=sections[0].hdrs;
+  rptCurrentTitle='Quick Report — All Sections';
+  _renderRptTable(RPT_TYPES.monthly.title+' (+ 4 additional sections in PDF/CSV export)',sections[0].hdrs,sections[0].rows);
+  _generateRptAI('quick',sections);
+  window._rptSections=sections;
+}
+
+function _buildGranularReport(t){
+  var cfg=RPT_TYPES[t];
+  var rows=t==='monthly'?_dataMonthly():t==='variance'?_dataVariance():t==='zone'?_dataZone():t==='discrepancy'?_dataDiscrepancy():t==='credits'?_dataCredits():_dataTrend();
+  rptData=rows;rptHeaders=cfg.headers;rptCurrentTitle=cfg.title;
+  window._rptSections=null;
+  _renderRptTable(cfg.title+' · '+cfg.rock,cfg.headers,rows);
+  _generateRptAI(t,rows);
+}
+
+function _dataMonthly(){
+  var carriers={};
+  for(var i=0;i<shipData.length;i++){var r=shipData[i];var k=(r.carrier||'Unknown')+'||'+(r.service_level||'Unknown');if(!carriers[k])carriers[k]={carrier:r.carrier||'Unknown',svc:r.service_level||'Unknown',count:0,total:0};carriers[k].count++;carriers[k].total+=parseFloat(r.charge_amount||0);}
+  var total=0;for(var k in carriers)total+=carriers[k].total;
+  var rows=[];for(var k in carriers){var c=carriers[k];rows.push([c.carrier,c.svc,c.count,'$'+fmt(c.total),'$'+fmt(c.count>0?c.total/c.count:0),(total>0?(c.total/total*100).toFixed(1)+'%':'0%')]);}
+  rows.sort(function(a,b){return parseFloat(b[3].replace(/[$,]/g,''))-parseFloat(a[3].replace(/[$,]/g,''));});
+  return rows;
+}
+
+function _dataVariance(){
+  var rows=[];
+  var BENCHMARKS={'Ground':15,'Priority Mail':12,'First Class':8,'Express':45,'2Day':35,'3Day':28};
+  for(var i=0;i<shipData.length;i++){
+    var r=shipData[i];var amt=parseFloat(r.charge_amount||0);var svc=r.service_level||'';var expected=0;
+    for(var k in BENCHMARKS){if(svc.toLowerCase().indexOf(k.toLowerCase())>=0){expected=BENCHMARKS[k];break;}}
+    if(expected>0&&amt>expected*1.15){var delta=amt-expected;rows.push([r.order_number||'—',r.carrier||'—',svc,'$'+fmt(amt),'$'+fmt(expected),'$'+fmt(delta),delta>5?'⚠ FLAG':'Review']);}
+  }
+  rows.sort(function(a,b){return parseFloat(b[5].replace(/[$,]/g,''))-parseFloat(a[5].replace(/[$,]/g,''));});
+  return rows.slice(0,200);
+}
+
+function _dataZone(){
+  var zones={};
+  for(var i=0;i<shipData.length;i++){var r=shipData[i];var country=r.ship_to_country||'US';var channel=country==='US'?'D2C':'International';var state=r.ship_to_state||r.ship_to_country||'Unknown';var k=channel+'||'+state;if(!zones[k])zones[k]={channel:channel,state:state,zone:country==='US'?'Domestic':'International',count:0,total:0};zones[k].count++;zones[k].total+=parseFloat(r.charge_amount||0);}
+  var rows=[];for(var k in zones){var z=zones[k];rows.push([z.channel,z.state,z.zone,z.count,'$'+fmt(z.total),'$'+fmt(z.count>0?z.total/z.count:0)]);}
+  rows.sort(function(a,b){return parseFloat(b[4].replace(/[$,]/g,''))-parseFloat(a[4].replace(/[$,]/g,''));});
+  return rows.slice(0,150);
+}
+
+function _dataDiscrepancy(){
+  var rows=[];
+  for(var i=0;i<shipData.length;i++){
+    var r=shipData[i];var rid='sr'+i;
+    var dt=(window._shipTags&&window._shipTags[rid]&&window._shipTags[rid].dt)||_autoDtShip(r,shipData);
+    if(!dt)continue;
+    var ct=(window._shipTags&&window._shipTags[rid]&&window._shipTags[rid].ct)||_autoCtShip(r);
+    var status='No claim';for(var j=0;j<creditData.length;j++){if(creditData[j].order_number===r.order_number){status=creditData[j].claim_status||'Pending';break;}}
+    rows.push([r.order_number||'—',dt,ct,r.carrier||'—','$'+fmt(parseFloat(r.charge_amount||0)),r.invoice_period||activePeriod.q||'—',status]);
+  }
+  rows.sort(function(a,b){return parseFloat(b[4].replace(/[$,]/g,''))-parseFloat(a[4].replace(/[$,]/g,''));});
+  return rows;
+}
+
+function _dataCredits(){
+  var rows=[];
+  for(var i=0;i<creditData.length;i++){var c=creditData[i];rows.push([c.order_number||'—',c.carrier||'—',c.claim_type||c.charge_type||'—','$'+fmt(parseFloat(c.amount||0)),c.invoice_period||'—',c.claim_status||'Pending',c.notes||'']);}
+  return rows;
+}
+
+function _dataTrend(){
+  var periods={};
+  for(var i=0;i<shipData.length;i++){var r=shipData[i];var p=r.invoice_period||'Unknown';if(!periods[p])periods[p]={ship:0,pick:0,oh:0,cred:0,count:0};periods[p].ship+=parseFloat(r.charge_amount||0);periods[p].count++;}
+  for(var i=0;i<ordData.length;i++){var r=ordData[i];var p=r.invoice_period||'Unknown';if(!periods[p])periods[p]={ship:0,pick:0,oh:0,cred:0,count:0};periods[p].pick+=parseFloat(r.initial_pick_fee_amount||0)+parseFloat(r.additional_pick_fee_amount||0);}
+  for(var i=0;i<invData.length;i++){var r=invData[i];var p=r.invoice_period||r.date_from||'Unknown';var a=parseFloat(r.amount||0);if(!periods[p])periods[p]={ship:0,pick:0,oh:0,cred:0,count:0};if(a<0)periods[p].cred+=Math.abs(a);else periods[p].oh+=a;}
+  var rows=[];var keys=Object.keys(periods).sort();
+  for(var i=0;i<keys.length;i++){var p=periods[keys[i]];rows.push([keys[i],p.count,'$'+fmt(p.ship),'$'+fmt(p.pick),'$'+fmt(p.oh),'$'+fmt(p.cred),'$'+fmt(p.ship+p.pick+p.oh)]);}
+  return rows;
+}
+
+function _renderRptTable(title,headers,rows){
+  rptCurrentTitle=title;
+  document.getElementById('rpt-title-display').textContent=title;
+  document.getElementById('rpt-row-count').textContent=rows.length;
+  var thead=document.getElementById('rpt-thead');
+  var tbody=document.getElementById('rpt-tbody');
+  var empty=document.getElementById('rpt-empty');
+  var preview=document.getElementById('rpt-preview');
+  var hrow='<tr>';for(var i=0;i<headers.length;i++)hrow+='<th style="text-align:left;padding:6px 8px;color:var(--text3);font-weight:400;border-bottom:1px solid var(--border2);font-size:10px;letter-spacing:.08em;text-transform:uppercase">'+headers[i]+'</th>';hrow+='</tr>';
+  thead.innerHTML=hrow;
+  if(!rows.length){empty.style.display='block';tbody.innerHTML='';preview.style.display='block';return;}
+  empty.style.display='none';
+  var html='';
+  for(var i=0;i<rows.length;i++){
+    html+='<tr style="border-bottom:1px solid var(--border)">';
+    for(var j=0;j<rows[i].length;j++){
+      var val=rows[i][j]||'—';var col='color:var(--text2)';
+      if(typeof val==='string'&&val.charAt(0)==='$')col='color:var(--lime);font-family:var(--mono)';
+      if(val==='⚠ FLAG')col='color:var(--amber)';
+      if(val==='DUP'||val==='RATE'||val==='DIM'||val==='ACC')col='color:var(--magenta)';
+      html+='<td style="padding:5px 8px;font-size:11px;'+col+'">'+val+'</td>';
+    }
+    html+='</tr>';
+  }
+  tbody.innerHTML=html;
+  preview.style.display='block';
+}
+
+function exportRptCSV(){
+  if(!rptData.length&&(!window._rptSections||!window._rptSections.length)){toast('Generate a report first','warn');return;}
+  var csv='';
+  if(window._rptSections&&rptMode==='quick'){
+    for(var s=0;s<window._rptSections.length;s++){
+      var sec=window._rptSections[s];var cfg=RPT_TYPES[sec.key];
+      csv+=cfg.title+' · '+cfg.rock+'\n';
+      csv+=sec.hdrs.join(',')+'\n';
+      for(var i=0;i<sec.rows.length;i++){csv+=sec.rows[i].map(function(v){return'"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',')+'\n';}
+      csv+='\n';
+    }
+  } else {
+    csv=rptHeaders.join(',')+'\n';
+    for(var i=0;i<rptData.length;i++){csv+=rptData[i].map(function(v){return'"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',')+'\n';}
+  }
+  var blob=new Blob([csv],{type:'text/csv'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  var period=(activePeriod.q||'custom').replace(/\s/g,'-');
+  a.download='HLC-Report-'+rptCurrentTitle.replace(/[^a-zA-Z0-9]/g,'-').replace(/-+/g,'-')+'-'+period+'.csv';
+  a.click();toast('CSV downloaded','ok');
+}
+
+function printRpt(){
+  if(!rptData.length&&(!window._rptSections||!window._rptSections.length)){toast('Generate a report first','warn');return;}
+  var pa=document.getElementById('rpt-print-area');
+  var period=activePeriod.q||('Custom: '+activePeriod.from+' – '+activePeriod.to);
+  var userLabel={'juan':'Juan Grisales','kim':'Kim Chan','jacobo':'Jacobo Ospina','dpm':'DPM (TBD)'}[document.getElementById('usel').value]||'Craighill Ops';
+  var ai=document.getElementById('rpt-ai-narrative').textContent||'';
+  var html='<h1>HLC Invoice Intelligence · '+rptCurrentTitle+'</h1>';
+  html+='<div class="rpt-meta">Period: '+period+' · Generated: '+new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+' · By: '+userLabel+' · Craighill Ops</div>';
+  if(ai){html+='<h2>AI Summary</h2><div class="rpt-summary-box">'+ai+'</div>';}
+  var sections=window._rptSections||[{key:'current',rows:rptData,hdrs:rptHeaders,title:rptCurrentTitle}];
+  for(var s=0;s<sections.length;s++){
+    var sec=sections[s];var cfg=RPT_TYPES[sec.key]||{title:sec.title||rptCurrentTitle,rock:''};
+    html+='<h2>'+cfg.title+(cfg.rock?' <span style="font-size:10px;color:#888">'+cfg.rock+'</span>':'')+'</h2>';
+    if(!sec.rows||!sec.rows.length){html+='<p style="color:#888;font-size:10px">No data for this period.</p>';continue;}
+    html+='<table><thead><tr>';
+    for(var i=0;i<sec.hdrs.length;i++)html+='<th>'+sec.hdrs[i]+'</th>';
+    html+='</tr></thead><tbody>';
+    for(var i=0;i<sec.rows.length;i++){html+='<tr>';for(var j=0;j<sec.rows[i].length;j++)html+='<td>'+(sec.rows[i][j]||'—')+'</td>';html+='</tr>';}
+    html+='</tbody></table>';
+  }
+  pa.innerHTML=html;pa.style.display='block';
+  window.print();
+  setTimeout(function(){pa.style.display='none';},1000);
+}
+
+async function _generateRptAI(type,data){
+  if(!aKey){return;}
+  var card=document.getElementById('rpt-ai-card');
+  var narr=document.getElementById('rpt-ai-narrative');
+  var title=document.getElementById('rpt-ai-title');
+  card.style.display='block';narr.className='ai-narrative loading';narr.textContent='Generating report summary...';
+  var period=activePeriod.q||('Custom: '+activePeriod.from+' – '+activePeriod.to);
+  var ctx='';
+  if(type==='quick'){
+    var sections=data;
+    ctx='Generate a concise executive summary for a Craighill Ops report covering '+period+'.\n\n';
+    for(var i=0;i<sections.length;i++){var cfg=RPT_TYPES[sections[i].key];ctx+=cfg.title+' ('+cfg.rock+'): '+sections[i].rows.length+' rows\n';if(sections[i].rows.length>0){ctx+='Top rows: '+JSON.stringify(sections[i].rows.slice(0,5))+'\n\n';}}
+    ctx+='Write 3-5 sentences covering: total cost picture, biggest cost driver, any notable discrepancies or credits, and one actionable recommendation for Kim Chan (Director of Operations).';
+    title.textContent='// Quick Report — AI Summary';
+  } else {
+    var cfg=RPT_TYPES[type];
+    ctx='Generate a concise summary for the '+cfg.title+' report ('+cfg.rock+') for period '+period+'.\nHeaders: '+cfg.headers.join(', ')+'\nData sample: '+JSON.stringify(Array.isArray(data)?data.slice(0,10):[])+'\nTotal rows: '+(Array.isArray(data)?data.length:0)+'\nWrite 2-4 sentences highlighting key findings and one actionable recommendation for ops review.';
+    title.textContent='// '+cfg.title+' · AI Summary';
+  }
+  try{
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,messages:[{role:'user',content:ctx}]})});
+    var d=await resp.json();
+    var text=(d.content&&d.content[0]&&d.content[0].text)||'Summary unavailable.';
+    narr.className='ai-narrative';narr.textContent=text;
+  }catch(e){narr.className='ai-narrative';narr.textContent='AI summary unavailable for this report.';}
+}
+
+function initReportsTab(){
+  document.getElementById('rpt-period-display').textContent=activePeriod.q||('Custom: '+activePeriod.from+' – '+activePeriod.to);
+}
 
 init();
 </script>
