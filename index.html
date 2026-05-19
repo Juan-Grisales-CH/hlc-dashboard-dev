@@ -2270,26 +2270,22 @@ function printRpt(){
     }
     body+='</tbody></table>';
   }
-  // Fully isolated popup — no stylesheet inheritance, all inline styles
+  // Build HTML string — fully inline styled, no external CSS
   var fullHtml='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+rptCurrentTitle+'</title>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#ffffff;color:#000000;margin:24px;font-family:Arial,sans-serif}'
     +'@media print{@page{margin:12mm}body{margin:0;padding:16px}}</style>'
     +'</head><body>'+body+'</body></html>';
-  var w=window.open('','_blank','width=900,height=700,noopener=0');
-  if(!w){toast('Pop-up blocked — please allow pop-ups for this site and try again','err');return;}
-  w.document.open();
-  w.document.write(fullHtml);
-  w.document.close();
-  // Use onload to guarantee render before print — much more reliable than timeouts
+  // Use Blob URL — Chrome treats this as a real page load, not about:blank
+  // document.write() into a popup prints about:blank; Blob URL fixes this
+  var blob=new Blob([fullHtml],{type:'text/html'});
+  var blobUrl=URL.createObjectURL(blob);
+  var w=window.open(blobUrl,'_blank','width=900,height=700');
+  if(!w){URL.revokeObjectURL(blobUrl);toast('Pop-up blocked — please allow pop-ups for this site','err');return;}
   w.onload=function(){
     w.focus();
     w.print();
-    setTimeout(function(){w.close();},1500);
+    setTimeout(function(){w.close();URL.revokeObjectURL(blobUrl);},1500);
   };
-  // Fallback: if onload already fired (cached), trigger print directly
-  if(w.document.readyState==='complete'){
-    w.focus();w.print();setTimeout(function(){w.close();},1500);
-  }
   toast('Print dialog opening...','ok');
 }
 
