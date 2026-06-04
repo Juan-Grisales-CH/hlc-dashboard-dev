@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HLC · INVOICE INTELLIGENCE v4.3</title>
+<title>HLC · INVOICE INTELLIGENCE v4.4</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -228,7 +228,7 @@ tr:hover td{background:var(--panel2)}
 <div class="hdr">
   <div class="logo">
     <div class="lm">CH</div>
-    <div><div class="lt">HLC · Invoice Intelligence</div><div class="ls">Craighill Ops · v4.3 · Supabase Live</div></div>
+    <div><div class="lt">HLC · Invoice Intelligence</div><div class="ls">Craighill Ops · v4.4 · Supabase Live</div></div>
   </div>
   <div class="hdr-c"><div class="pulse" id="dbP"></div><span id="dbS">Connecting...</span></div>
   <div class="hdr-r">
@@ -673,6 +673,15 @@ tr:hover td{background:var(--panel2)}
     </div>
   </div>
 
+  <div id="rpt-ratecard-panel" style="display:none;background:var(--panel2);border:1px solid var(--border2);padding:12px 16px;margin-bottom:16px">
+    <div style="font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:10px">// Rate Card — Service Benchmarks <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(used in Rate Variance report · saved to app_config)</span></div>
+    <div id="rpt-ratecard-fields" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="vbtn vbtn-lime vbtn-sm" onclick="saveRateCard()">Save</button>
+      <span style="font-size:9px;color:var(--text3)">shared across sessions via Supabase app_config</span>
+    </div>
+  </div>
+
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
     <button class="ai-gen-btn" id="rpt-gen-btn" onclick="generateReport()" style="font-size:11px;padding:10px 28px" disabled>✦ Generate Report</button>
     <span id="rpt-gen-label" style="font-size:10px;color:var(--text3)">Select a report mode above to continue</span>
@@ -731,6 +740,38 @@ var sfCarrier='ALL',sfCountry='ALL';
 var ofPkg='ALL',ofCarrier='ALL';
 var activePeriod={type:'Q',q:'Q2-2026',from:'2026-04-01',to:'2026-06-30'};
 var cmpDataA=null,cmpDataB=null;
+// HLC 2026 contract benchmarks — representative rate per service level
+// Basis: ~1lb package, zone 4-5 (typical Brooklyn → mid-US), per HLC rate sheets effective Jan 18 2026
+// "Residential Ground" includes UPS residential delivery surcharge (~$5)
+// Override per-session via Rate Card UI in Reports tab → saves to app_config
+var _rateCard={
+  'Residential Ground':13.21,
+  'STANDARD':6.26,
+  'DHL SmartMail Parcel':6.26,
+  'DHL SmartMail Parcel Expedited':7.50,
+  'OnTracGround':4.82,
+  'Ground':8.21,
+  'Ground Saver':7.54,
+  'UPS Ground':8.21,
+  'FedEx Ground':12.49,
+  '2Day':19.33,
+  'Priority Mail':10.66,
+  'EXPRESS':19.33
+};
+
+// FlavorCloud Standard DDP benchmarks by destination country code (ISO 2-letter)
+// Source: HLC 2026 FlavorCloud Standard Premium DDP rate sheet, 1lb benchmark
+// Canada uses blended avg across CA1-CA4 zones ($11.55)
+// Used in Rate Variance report when carrier contains "flavorcloud" or "flavor"
+var _fcRates={'AE':49.66,'AF':81.9,'AG':59.0,'AI':59.0,'AM':81.9,'AN':59.0,'AR':37.01,'AT':20.4,'AU':16.45,'AW':59.0,'AZ':85.83,'BA':81.9,'BB':72.42,'BD':46.98,'BE':18.79,'BF':81.9,'BG':29.92,'BH':44.18,'BI':81.9,'BM':59.27,'BN':57.0,'BO':81.9,'BR':34.64,'BS':59.0,'BT':68.16,'BW':81.9,'BZ':71.82,'CA':11.55,'CG':81.9,'CH':48.55,'CI':81.9,'CL':26.76,'CM':81.9,'CN':28.93,'CO':22.53,'CR':24.43,'CV':81.9,'CY':40.07,'CZ':20.4,'DE':13.7,'DK':20.77,'DM':59.0,'DO':32.03,'DZ':81.9,'EC':37.01,'EE':29.92,'EG':39.08,'ES':17.44,'ET':81.9,'FI':28.87,'FO':85.83,'FR':19.28,'GA':81.9,'GB':9.73,'GE':49.83,'GG':66.81,'GH':50.61,'GM':81.9,'GN':81.9,'GP':89.22,'GR':23.17,'GT':38.81,'GY':71.82,'HK':16.04,'HN':38.81,'HR':24.59,'HT':59.0,'HU':20.4,'ID':39.43,'IE':19.84,'IL':57.58,'IN':29.45,'IS':47.39,'IT':20.73,'JE':66.81,'JM':77.15,'JO':50.41,'JP':22.98,'KE':40.18,'KH':81.9,'KR':27.98,'KW':44.18,'KY':59.0,'KZ':85.83,'LB':48.01,'LI':47.39,'LK':31.33,'LR':85.83,'LT':23.83,'LU':19.32,'LV':28.33,'MA':82.27,'MC':49.68,'MD':81.9,'ME':85.83,'MG':81.9,'MK':85.83,'ML':81.9,'MO':57.95,'MQ':69.09,'MR':81.9,'MT':33.09,'MU':81.9,'MV':68.16,'MW':81.9,'MX':13.81,'MY':38.4,'MZ':81.9,'NA':81.9,'NC':85.83,'NE':81.9,'NG':53.79,'NI':77.87,'NL':20.17,'NO':48.05,'NP':68.16,'NZ':15.52,'OM':47.29,'PA':32.03,'PE':30.94,'PF':85.83,'PH':36.81,'PK':68.16,'PL':19.7,'PT':18.7,'PY':33.15,'QA':44.18,'RE':81.9,'RO':18.04,'RS':85.83,'RW':81.9,'SA':49.66,'SC':81.9,'SE':22.48,'SG':15.31,'SI':26.7,'SK':24.99,'SN':81.9,'SR':71.82,'SV':71.82,'SZ':81.9,'TD':81.9,'TG':81.9,'TH':28.33,'TJ':81.9,'TM':81.9,'TN':81.9,'TR':57.02,'TT':64.03,'TW':23.08,'TZ':81.9,'UA':81.9,'UG':81.9,'UY':40.3,'UZ':85.83,'VC':85.83,'VN':28.93,'VU':85.83,'YE':57.0,'ZA':41.83,'ZM':81.9,'ZW':81.9};
+
+// FlavorCloud Express Premium benchmarks by destination country code (ISO 2-letter)
+// Source: HLC 2026 FlavorCloud Express Premium rate sheet, 1lb benchmark
+// Note: Express is cheaper than Standard for some countries (e.g. IL $32.41 vs $57.58)
+// Service detection: service_level containing "express" or "premium" uses this table
+var _fcExpressRates={'AD':31.27,'AE':32.41,'AF':32.18,'AG':24.92,'AI':24.92,'AL':32.18,'AM':32.18,'AN':24.92,'AO':32.18,'AR':44.73,'AS':32.18,'AT':31.27,'AU':34.93,'AW':24.92,'AZ':32.18,'BA':32.18,'BB':24.92,'BD':34.03,'BE':29.74,'BF':32.18,'BG':33.53,'BH':32.41,'BI':32.18,'BJ':32.18,'BL':44.64,'BM':24.92,'BN':32.41,'BO':44.73,'BQ':27.29,'BR':44.73,'BS':24.92,'BT':34.03,'BW':32.18,'BY':32.18,'BZ':44.73,'CA':25.89,'CD':32.18,'CF':32.18,'CG':32.18,'CH':31.27,'CI':32.18,'CK':32.18,'CL':44.73,'CM':32.18,'CN':33.64,'CO':44.73,'CR':44.73,'CU':44.64,'CV':32.18,'CW':24.92,'CY':32.41,'CZ':33.53,'DE':29.74,'DJ':32.18,'DK':31.27,'DM':24.92,'DO':24.92,'DZ':32.18,'EC':44.73,'EE':33.53,'EG':32.41,'ER':32.18,'ES':31.27,'ET':32.18,'FI':31.27,'FJ':32.18,'FK':62.37,'FM':32.18,'FO':31.27,'FR':29.74,'GA':32.18,'GB':29.74,'GD':24.92,'GE':32.18,'GF':44.73,'GG':56.23,'GH':32.18,'GI':33.53,'GL':31.27,'GM':32.18,'GN':32.18,'GP':24.92,'GQ':32.18,'GR':31.27,'GT':44.73,'GU':34.93,'GW':32.18,'GY':44.73,'HK':31.55,'HN':44.73,'HR':32.18,'HT':24.92,'HU':33.53,'IC':56.23,'ID':34.93,'IE':29.74,'IL':32.41,'IN':34.03,'IQ':32.18,'IR':79.92,'IS':31.27,'IT':29.74,'JE':56.23,'JM':24.92,'JO':32.41,'JP':29.44,'KE':32.18,'KG':32.18,'KH':32.18,'KI':83.64,'KM':86.06,'KN':24.92,'KP':83.64,'KR':29.44,'KW':32.41,'KY':24.92,'KZ':32.18,'LA':32.18,'LB':32.41,'LC':24.92,'LI':31.27,'LK':34.03,'LR':32.18,'LS':32.18,'LT':33.53,'LU':29.74,'LV':33.53,'LY':32.18,'MA':32.18,'MC':29.74,'MD':32.18,'ME':32.18,'MF':24.92,'MG':32.18,'MH':32.18,'MK':32.18,'ML':32.18,'MM':32.18,'MN':32.18,'MO':34.93,'MP':32.18,'MQ':24.92,'MR':32.18,'MS':24.92,'MT':31.27,'MU':32.18,'MV':34.03,'MW':32.18,'MX':24.42,'MY':34.93,'MZ':32.18,'NA':32.18,'NC':32.18,'NE':32.18,'NG':32.18,'NI':44.73,'NL':29.74,'NO':31.27,'NP':34.03,'NR':83.64,'NU':83.64,'NZ':34.93,'OM':32.41,'PA':44.73,'PE':44.73,'PF':34.22,'PG':32.18,'PH':34.93,'PK':34.03,'PL':33.53,'PS':32.41,'PT':31.27,'PW':32.18,'PY':44.73,'QA':32.41,'RE':32.18,'RO':33.53,'RS':32.18,'RU':33.53,'RW':32.18,'SA':32.41,'SB':83.64,'SC':32.18,'SD':32.18,'SE':31.27,'SG':31.55,'SH':86.06,'SI':33.53,'SK':33.53,'SL':32.18,'SM':47.23,'SN':32.18,'SO':32.18,'SR':44.73,'SS':86.06,'ST':86.06,'SV':44.73,'SX':24.92,'SY':32.41,'SZ':32.18,'TC':24.92,'TD':32.18,'TG':32.18,'TH':34.93,'TJ':79.92,'TL':32.18,'TM':32.18,'TN':32.18,'TO':32.18,'TR':32.41,'TT':24.92,'TV':83.64,'TW':31.55,'TZ':32.18,'UA':32.18,'UG':32.18,'UY':44.73,'UZ':32.18,'VA':34.78,'VC':24.92,'VE':44.73,'VG':24.92,'VI':24.92,'VN':34.93,'VU':32.18,'WF':32.18,'WS':32.18,'XK':79.92,'YE':32.41,'YT':86.06,'ZA':33.53,'ZM':32.18,'ZW':32.18};
+var _loadedTags={};
+var _stableKeyMap={};
 
 var QUARTERS={
   'Q4-2025':{from:'2025-10-01',to:'2025-12-31'},
@@ -755,6 +796,7 @@ async function init(){
     setSt('live','Connected · Supabase Live');
     showLoad('Loading AI config...',30);
     try{var cfg=await sb.from('app_config').select('value').eq('key','anthropic_api_key').single();if(cfg.data&&cfg.data.value){aKey=cfg.data.value;document.getElementById('aiModelBadge').textContent='Sonnet 4 · Haiku fallback';}}catch(e){}
+    try{var rc=await sb.from('app_config').select('value').eq('key','rate_card').single();if(rc.data&&rc.data.value){try{_rateCard=JSON.parse(rc.data.value);}catch(e){}}}catch(e){}
     showLoad('Loading period data...',50);
     await loadAll();
     showLoad('Ready!',100);
@@ -781,7 +823,7 @@ async function loadAll(){
   document.getElementById('aiNarrative').style.display='none';
   document.getElementById('aiNarrative').textContent='';
   // Reset taxonomy tags on period change (row IDs shift with new data)
-  window._invTags={};window._ordTags={};window._shipTags={};
+  window._invTags={};window._ordTags={};window._shipTags={};_stableKeyMap={};
   setText('periodStatus','Loading shipping...');
   await loadShipping();
   setText('periodStatus','Loading orders...');
@@ -790,6 +832,7 @@ async function loadAll(){
   await loadInvoice();
   setText('periodStatus','Loading credits...');
   await loadCredits();
+  await loadPersistedTags();
   setText('periodStatus','Rendering...');
   renderOverview();
   // Force table renders with slight delay to ensure DOM is ready
@@ -1846,9 +1889,11 @@ function _autoDtShip(row,allRows){
   var amt=parseFloat(row.charge_amount||0);
   // >$300 carrier charge = OVERCHARGE flag
   if(amt>OUTLIER_SHIP_THRESHOLD)return'OVERCHARGE';
-  // Duplicate order number in same dataset = DUP
+  // Duplicate order number in same invoice period = DUP
+  // Period-scoped: cross-period appearances are legitimate re-bills, not duplicates
   if(row.order_number&&allRows){
-    var count=0;for(var i=0;i<allRows.length;i++){if(allRows[i].order_number===row.order_number)count++;}
+    var periodKey=(row.date_from||'');
+    var count=0;for(var i=0;i<allRows.length;i++){if(allRows[i].order_number===row.order_number&&(allRows[i].date_from||'')===periodKey)count++;}
     if(count>1)return'DUP';
   }
   return''; // blank — no discrepancy detected
@@ -1874,17 +1919,26 @@ function _autoDtInv(row){
 // ── INIT TAG STORES ───────────────────────────────────────────────────────────
 function _initShipTags(rid,row){
   if(!window._shipTags[rid]){
-    window._shipTags[rid]={dt:_autoDtShip(row,shipData),ct:_autoCtShip(row)};
+    var sk=(row.order_number||'')+'_'+(row.invoice_period||row.date_from||'');
+    _stableKeyMap[rid]={tableName:'shipping',stableKey:sk};
+    var saved=_loadedTags['shipping_'+sk];
+    window._shipTags[rid]={dt:saved?saved.dt:_autoDtShip(row,shipData),ct:saved?saved.ct:_autoCtShip(row)};
   }
 }
 function _initOrdTags(rid,row){
   if(!window._ordTags[rid]){
-    window._ordTags[rid]={dt:_autoDtOrd(row),ct:_autoCtOrd(row)};
+    var sk=(row.order_number||'')+'_'+(row.invoice_period||row.date_from||'');
+    _stableKeyMap[rid]={tableName:'order',stableKey:sk};
+    var saved=_loadedTags['order_'+sk];
+    window._ordTags[rid]={dt:saved?saved.dt:_autoDtOrd(row),ct:saved?saved.ct:_autoCtOrd(row)};
   }
 }
 function _initInvTags(rid,row){
   if(!window._invTags[rid]){
-    window._invTags[rid]={dt:_autoDtInv(row),ct:_autoCtInv(row)};
+    var sk=row.invoice_id||((row.date_from||'')+'_'+(row.charge_on_invoice||'')+'_'+(Math.round(Math.abs(parseFloat(row.amount||0))*100)));
+    _stableKeyMap[rid]={tableName:'invoice',stableKey:sk};
+    var saved=_loadedTags['invoice_'+sk];
+    window._invTags[rid]={dt:saved?saved.dt:_autoDtInv(row),ct:saved?saved.ct:_autoCtInv(row)};
   }
 }
 function _dtSel(storeKey,rid){
@@ -1898,7 +1952,7 @@ function _dtSel(storeKey,rid){
     +'var v=this.value===\'—\'?\'\'  :this.value; '
     +'window[\''+storeKey+'\'][\''+rid+'\'][\'dt\']=v; '
     +'this.className=\'tax-sel\'+(v?\' dt-set\':\'\'); '
-    +'this.title=\'DT: \'+(DT_DESC[v]||\'No discrepancy flagged\')">';
+    +'this.title=\'DT: \'+(DT_DESC[v]||\'No discrepancy flagged\');saveTag(\''+storeKey+'\',\''+rid+'\',\'dt\',v)">';
   // Always show — as first option
   html+='<option value="—"'+((!cur||cur==='—')?' selected':'')+'>—</option>';
   DT_OPTIONS.filter(function(o){return o!=='—';}).forEach(function(o){
@@ -1913,7 +1967,7 @@ function _ctSel(storeKey,rid){
     +'if(!window[\''+storeKey+'\'])window[\''+storeKey+'\']={}; '
     +'if(!window[\''+storeKey+'\'][\''+rid+'\'])window[\''+storeKey+'\'][\''+rid+'\']={}; '
     +'window[\''+storeKey+'\'][\''+rid+'\'][\'ct\']=this.value; '
-    +'this.title=\'CT: \'+(CT_DESC[this.value]||\'Charge Type\')">';
+    +'this.title=\'CT: \'+(CT_DESC[this.value]||\'Charge Type\');saveTag(\''+storeKey+'\',\''+rid+'\',\'ct\',this.value)">';
   CT_OPTIONS.filter(function(o){return o!=='—';}).forEach(function(o){
     html+='<option'+(o===cur?' selected':'')+'>'+o+'</option>';
   });
@@ -1921,33 +1975,77 @@ function _ctSel(storeKey,rid){
 }
 
 // ── GROUND TRUTH VALIDATOR ────────────────────────────────────────────────────
-// Call validateGroundTruth() in console after loading All Time to verify numbers
-// Expected: Ship $490,757.32 · Pick $166,838.25 · OH $63,924.64 · Credits $17,668.73 · Orders 44,469 · Avg $11.06
+// Run validateGroundTruth() in console after loading All Time to verify numbers.
+// BASELINE = pre-June-2026 load. After Kim adds new invoices, shipping/overhead/orders
+// will be HIGHER than baseline — that's correct. Credits/pick should stay stable.
 function validateGroundTruth(){
   var shipTotal=0;for(var i=0;i<shipData.length;i++)shipTotal+=parseFloat(shipData[i].charge_amount||0);
-  var pickTotal=0,seen={};
+  var pickTotal=0;
   for(var i=0;i<ordData.length;i++){
-    var on=ordData[i].order_number;
-    if(on&&seen[on])continue;if(on)seen[on]=true;
     pickTotal+=parseFloat(ordData[i].initial_pick_fee_amount||0)+parseFloat(ordData[i].additional_pick_fee_amount||0);
   }
   var overhead=0,credits=0;
   for(var i=0;i<invData.length;i++){var a=parseFloat(invData[i].amount||0);if(a<0)credits+=Math.abs(a);else overhead+=a;}
   var uniq={};for(var i=0;i<ordData.length;i++)if(ordData[i].order_number)uniq[ordData[i].order_number]=true;
   var ordCount=Object.keys(uniq).length;
-  var EXPECTED={ship:490757.32,pick:166838.25,oh:63924.64,cred:17668.73,ords:44469,avg:11.06};
-  console.group('HLC Dashboard — Ground Truth Validation');
-  console.log('Shipping:  ACTUAL $'+fmt(shipTotal)+'  |  EXPECTED $'+fmt(EXPECTED.ship)+'  |  '+(Math.abs(shipTotal-EXPECTED.ship)<1?'✅ MATCH':'❌ DELTA $'+fmt(Math.abs(shipTotal-EXPECTED.ship))));
-  console.log('Pick&Pack: ACTUAL $'+fmt(pickTotal)+'  |  EXPECTED $'+fmt(EXPECTED.pick)+'  |  '+(Math.abs(pickTotal-EXPECTED.pick)<1?'✅ MATCH':'❌ DELTA $'+fmt(Math.abs(pickTotal-EXPECTED.pick))));
-  console.log('Overhead:  ACTUAL $'+fmt(overhead)+'  |  EXPECTED $'+fmt(EXPECTED.oh)+'  |  '+(Math.abs(overhead-EXPECTED.oh)<1?'✅ MATCH':'❌ DELTA $'+fmt(Math.abs(overhead-EXPECTED.oh))));
-  console.log('Credits:   ACTUAL $'+fmt(credits)+'  |  EXPECTED $'+fmt(EXPECTED.cred)+'  |  '+(Math.abs(credits-EXPECTED.cred)<1?'✅ MATCH':'❌ DELTA $'+fmt(Math.abs(credits-EXPECTED.cred))));
-  console.log('Orders:    ACTUAL '+ordCount+'  |  EXPECTED '+EXPECTED.ords+'  |  '+(ordCount===EXPECTED.ords?'✅ MATCH':'❌ DELTA '+(ordCount-EXPECTED.ords)));
-  console.log('Avg/Ship:  ACTUAL $'+fmt(ordCount>0?shipTotal/ordCount:0)+'  |  EXPECTED $'+fmt(EXPECTED.avg)+'  |  '+(Math.abs((ordCount>0?shipTotal/ordCount:0)-EXPECTED.avg)<0.1?'✅ MATCH':'❌ DELTA $'+fmt(Math.abs((ordCount>0?shipTotal/ordCount:0)-EXPECTED.avg))));
-  console.log('Raw counts: '+shipData.length+' ship rows, '+ordData.length+' order rows ('+ordCount+' unique), '+invData.length+' inv rows');
+  var BASELINE={ship:490757.32,pick:166838.25,oh:63924.64,cred:17668.73,ords:44469,avg:11.06};
+  console.group('HLC Dashboard — Ground Truth Validation (All Time)');
+  console.log('Shipping:  ACTUAL $'+fmt(shipTotal)+'  |  BASELINE $'+fmt(BASELINE.ship)+'  |  DELTA $'+fmt(shipTotal-BASELINE.ship));
+  console.log('Pick&Pack: ACTUAL $'+fmt(pickTotal)+'  |  BASELINE $'+fmt(BASELINE.pick)+'  |  DELTA $'+fmt(pickTotal-BASELINE.pick));
+  console.log('Overhead:  ACTUAL $'+fmt(overhead)+'  |  BASELINE $'+fmt(BASELINE.oh)+'  |  DELTA $'+fmt(overhead-BASELINE.oh));
+  console.log('Credits:   ACTUAL $'+fmt(credits)+'  |  BASELINE $'+fmt(BASELINE.cred)+'  |  DELTA $'+fmt(credits-BASELINE.cred));
+  console.log('Orders:    ACTUAL '+ordCount+'  |  BASELINE '+BASELINE.ords+'  |  DELTA '+(ordCount-BASELINE.ords));
+  console.log('Avg/Ship:  ACTUAL $'+fmt(ordCount>0?shipTotal/ordCount:0)+'  |  BASELINE $'+fmt(BASELINE.avg));
+  console.log('Raw row counts: '+shipData.length+' ship, '+ordData.length+' order ('+ordCount+' unique), '+invData.length+' inv');
   console.groupEnd();
-  return {shipping:shipTotal,pickpack:pickTotal,overhead:overhead,credits:credits,orders:ordCount};
+  return{shipping:shipTotal,pickpack:pickTotal,overhead:overhead,credits:credits,orders:ordCount};
 }
 window.validateGroundTruth=validateGroundTruth;
+
+// ── TAG PERSISTENCE ───────────────────────────────────────────────────────────
+// Requires charge_tags table in Supabase:
+// CREATE TABLE charge_tags (
+//   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+//   table_name text NOT NULL,
+//   stable_key text NOT NULL,
+//   dt text,
+//   ct text,
+//   tagged_by text,
+//   updated_at timestamptz DEFAULT now(),
+//   UNIQUE(table_name, stable_key)
+// );
+async function loadPersistedTags(){
+  if(!sb)return;
+  try{
+    var r=await sb.from('charge_tags').select('*');
+    _loadedTags={};
+    if(r.data){
+      for(var i=0;i<r.data.length;i++){
+        var t=r.data[i];
+        _loadedTags[t.table_name+'_'+t.stable_key]={dt:t.dt||'',ct:t.ct||''};
+      }
+    }
+  }catch(e){console.warn('Tag load (charge_tags table may not exist yet):',e.message);}
+}
+
+async function saveTag(storeKey,rid,axis,val){
+  var info=_stableKeyMap[rid];
+  if(!info||!sb)return;
+  var key=info.tableName+'_'+info.stableKey;
+  var existing=_loadedTags[key]||{};
+  existing[axis]=val;
+  _loadedTags[key]=existing;
+  try{
+    await sb.from('charge_tags').upsert({
+      table_name:info.tableName,
+      stable_key:info.stableKey,
+      dt:existing.dt||null,
+      ct:existing.ct||null,
+      tagged_by:document.getElementById('usel').value||'juan',
+      updated_at:new Date().toISOString()
+    },{onConflict:'table_name,stable_key'});
+  }catch(e){console.warn('Tag save:',e.message);}
+}
 
 // ── REPORTS TAB ──────────────────────────────────────────────────────────────
 var rptMode=null,rptType=null,rptData=[],rptHeaders=[],rptCurrentTitle='';
@@ -1996,6 +2094,36 @@ function selectRptType(t){
   btn.disabled=false;
   lbl.textContent='Ready — '+RPT_TYPES[t].title;
   lbl.style.color='var(--cyan)';
+  var rcPanel=document.getElementById('rpt-ratecard-panel');
+  if(rcPanel)rcPanel.style.display=(t==='variance'?'block':'none');
+}
+
+function renderRateCardUI(){
+  var fields=document.getElementById('rpt-ratecard-fields');
+  if(!fields)return;
+  var html='';
+  Object.keys(_rateCard).forEach(function(k){
+    var id='rc_'+k.replace(/[^a-zA-Z0-9]/g,'_');
+    html+='<div style="display:flex;flex-direction:column;gap:3px">'
+      +'<label style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em">'+k+'</label>'
+      +'<input class="flt-input" id="'+id+'" type="number" step="0.01" value="'+_rateCard[k]+'" style="width:68px;padding:4px 6px">'
+      +'</div>';
+  });
+  fields.innerHTML=html;
+}
+
+async function saveRateCard(){
+  var newCard={};
+  Object.keys(_rateCard).forEach(function(k){
+    var id='rc_'+k.replace(/[^a-zA-Z0-9]/g,'_');
+    var el=document.getElementById(id);
+    if(el)newCard[k]=parseFloat(el.value)||_rateCard[k];
+  });
+  _rateCard=newCard;
+  if(!sb){toast('Not connected','err');return;}
+  var r=await sb.from('app_config').upsert({key:'rate_card',value:JSON.stringify(newCard)},{onConflict:'key'});
+  if(r.error){toast('Save failed: '+r.error.message,'err');return;}
+  toast('Rate card saved','ok');
 }
 
 function generateReport(){
@@ -2048,11 +2176,31 @@ function _dataMonthly(){
 
 function _dataVariance(){
   var rows=[];
-  var BENCHMARKS={'Ground':15,'Priority Mail':12,'First Class':8,'Express':45,'2Day':35,'3Day':28};
+  var BENCHMARKS=_rateCard;
   for(var i=0;i<shipData.length;i++){
-    var r=shipData[i];var amt=parseFloat(r.charge_amount||0);var svc=r.service_level||'';var expected=0;
-    for(var k in BENCHMARKS){if(svc.toLowerCase().indexOf(k.toLowerCase())>=0){expected=BENCHMARKS[k];break;}}
-    if(expected>0&&amt>expected*1.15){var delta=amt-expected;rows.push([r.order_number||'—',r.carrier||'—',svc,'$'+fmt(amt),'$'+fmt(expected),'$'+fmt(delta),delta>5?'⚠ FLAG':'Review']);}
+    var r=shipData[i];var amt=parseFloat(r.charge_amount||0);var svc=(r.service_level||'').toLowerCase();var expected=0;
+    var carrier=(r.carrier||'').toLowerCase();
+    var isFC=carrier.indexOf('flavorcloud')>=0||carrier.indexOf('flavor')>=0;
+    if(isFC){
+      // FlavorCloud: detect Express vs Standard by service level string, then look up by country
+      var country=(r.ship_to_country||'').toUpperCase();
+      var isExpress=svc.indexOf('express')>=0||svc.indexOf('premium')>=0;
+      var fcTable=isExpress?_fcExpressRates:_fcRates;
+      if(country&&fcTable[country]){expected=fcTable[country];}
+      else if(country&&_fcRates[country]){expected=_fcRates[country];} // fallback to Standard
+      var svcLabel=(isExpress?'FC·EXP·':'FC·STD·')+country;
+      if(expected>0&&amt>expected*1.15){
+        var delta=amt-expected;
+        rows.push([r.order_number||'—',r.carrier||'—',svcLabel,'$'+fmt(amt),'$'+fmt(expected),'$'+fmt(delta),delta>5?'⚠ FLAG':'Review']);
+      }
+    } else {
+      // Domestic carriers: match by service level string
+      for(var k in BENCHMARKS){if(svc.indexOf(k.toLowerCase())>=0){expected=BENCHMARKS[k];break;}}
+      if(expected>0&&amt>expected*1.15){
+        var delta=amt-expected;
+        rows.push([r.order_number||'—',r.carrier||'—',r.service_level||'—','$'+fmt(amt),'$'+fmt(expected),'$'+fmt(delta),delta>5?'⚠ FLAG':'Review']);
+      }
+    }
   }
   rows.sort(function(a,b){return parseFloat(b[5].replace(/[$,]/g,''))-parseFloat(a[5].replace(/[$,]/g,''));});
   return rows.slice(0,200);
@@ -2128,7 +2276,7 @@ function _dataTrend(){
   var periods={};
   for(var i=0;i<shipData.length;i++){var r=shipData[i];var p=r.invoice_period||'Unknown';if(!periods[p])periods[p]={ship:0,pick:0,oh:0,cred:0,count:0};periods[p].ship+=parseFloat(r.charge_amount||0);periods[p].count++;}
   for(var i=0;i<ordData.length;i++){var r=ordData[i];var p=r.invoice_period||'Unknown';if(!periods[p])periods[p]={ship:0,pick:0,oh:0,cred:0,count:0};periods[p].pick+=parseFloat(r.initial_pick_fee_amount||0)+parseFloat(r.additional_pick_fee_amount||0);}
-  for(var i=0;i<invData.length;i++){var r=invData[i];var p=r.invoice_period||r.date_from||'Unknown';var a=parseFloat(r.amount||0);if(!periods[p])periods[p]={ship:0,pick:0,oh:0,cred:0,count:0};if(a<0)periods[p].cred+=Math.abs(a);else periods[p].oh+=a;}
+  for(var i=0;i<invData.length;i++){var r=invData[i];var p=r.invoice_period||(r.date_from||'').slice(0,7)||'Unknown';var a=parseFloat(r.amount||0);if(!periods[p])periods[p]={ship:0,pick:0,oh:0,cred:0,count:0};if(a<0)periods[p].cred+=Math.abs(a);else periods[p].oh+=a;}
   var rows=[];var keys=Object.keys(periods).sort();
   for(var i=0;i<keys.length;i++){var p=periods[keys[i]];rows.push([keys[i],p.count,'$'+fmt(p.ship),'$'+fmt(p.pick),'$'+fmt(p.oh),'$'+fmt(p.cred),'$'+fmt(p.ship+p.pick+p.oh)]);}
   return rows;
@@ -2323,6 +2471,7 @@ async function _generateRptAI(type,data){
 
 function initReportsTab(){
   document.getElementById('rpt-period-display').textContent=activePeriod.q||('Custom: '+activePeriod.from+' – '+activePeriod.to);
+  renderRateCardUI();
 }
 
 init();
